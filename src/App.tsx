@@ -4,6 +4,7 @@ import { TopBar } from "./components/TopBar";
 import { PortfolioPage } from "./pages/PortfolioPage";
 import { ResourcesPage } from "./pages/ResourcesPage";
 import { ArticlesPage } from "./pages/ArticlesPage";
+import { CompetencesPage } from "./pages/CompetencesPage";
 import { AdministrationPage } from "./pages/AdministrationPage";
 import { PlanningPage } from "./pages/PlanningPage";
 import { ReportingPage } from "./pages/ReportingPage";
@@ -13,15 +14,14 @@ export type NavigationPage =
   | "portfolio"
   | "planning"
   | "resources"
+  | "competences"
   | "articles"
   | "reporting"
   | "administration";
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<NavigationPage>("portfolio");
-  const [supabaseStatus, setSupabaseStatus] = useState<
-    "checking" | "ok" | "error"
-  >("checking");
+  const [supabaseStatus, setSupabaseStatus] = useState<"checking" | "ok" | "error">("checking");
   const [supabaseError, setSupabaseError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -37,7 +37,7 @@ export default function App() {
 
         console.log("Supabase session:", sessionData.session);
 
-        // 2) Optionnel : récupérer le user (utile pour la suite org/memberships)
+        // 2) Optionnel : récupérer le user
         const { data: userData, error: userError } = await supabase.auth.getUser();
         if (userError) {
           // getUser peut échouer si pas de session : ce n'est pas bloquant
@@ -64,6 +64,8 @@ export default function App() {
         return <PlanningPage />;
       case "resources":
         return <ResourcesPage />;
+      case "competences":
+        return <CompetencesPage />;
       case "articles":
         return <ArticlesPage />;
       case "reporting":
@@ -75,8 +77,6 @@ export default function App() {
     }
   };
 
-  // Si Supabase n'est pas correctement initialisé, on affiche une alerte claire
-  // (cela évite de poursuivre avec des écrans qui feront des requêtes)
   if (supabaseStatus === "error") {
     return (
       <div className="h-screen bg-gray-50 flex items-center justify-center p-6">
@@ -85,10 +85,11 @@ export default function App() {
             Configuration Supabase invalide
           </h1>
           <p className="text-sm text-gray-600 mt-2">
-            Vérifiez que le fichier <code className="px-1 py-0.5 bg-gray-100 rounded">.env</code> est bien à la racine
-            du projet et contient <code className="px-1 py-0.5 bg-gray-100 rounded">VITE_SUPABASE_URL</code> et{" "}
-            <code className="px-1 py-0.5 bg-gray-100 rounded">VITE_SUPABASE_ANON_KEY</code>, puis redémarrez{" "}
-            <code className="px-1 py-0.5 bg-gray-100 rounded">npm run dev</code>.
+            Vérifiez que le fichier{" "}
+            <code className="px-1 py-0.5 bg-gray-100 rounded">.env</code> est bien à la racine
+            du projet et contient{" "}
+            <code className="px-1 py-0.5 bg-gray-100 rounded">VITE_SUPABASE_URL</code> et{" "}
+            <code className="px-1 py-0.5 bg-gray-100 rounded">VITE_SUPABASE_ANON_KEY</code>.
           </p>
           <div className="mt-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded p-3">
             {supabaseError}
@@ -110,7 +111,6 @@ export default function App() {
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto">
-          {/* Optionnel : badge discret tant que Supabase est en test */}
           {supabaseStatus === "checking" && (
             <div className="px-4 py-2 text-sm text-gray-600 border-b bg-white">
               Connexion à Supabase…
