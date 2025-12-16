@@ -29,7 +29,10 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
+        
+      - name: Debug env presence
+        run: node -e "console.log('ORG present:', !!process.env.VITE_ORGANIZATION_ID)"
+        
       - name: Build
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
