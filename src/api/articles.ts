@@ -1,17 +1,14 @@
 // src/api/articles.ts
 
 import { supabase } from "../lib/supabase";
-import { ORGANIZATION_ID, HAS_ORGANIZATION } from "../lib/config";
 import type { Article } from "../types";
 import { ensureCompetenceIds, ensurePrestationId } from "./refData";
 
 export async function fetchArticles(): Promise<Article[]> {
-  // ✅ ne plus bloquer l'app si org non configurée
-  if (!HAS_ORGANIZATION) return [];
-
   const { data, error } = await supabase
     .from("articles")
-    .select(`
+    .select(
+      `
       id,
       name,
       service,
@@ -22,8 +19,8 @@ export async function fetchArticles(): Promise<Article[]> {
       competences:article_competences(
         competence:competences(name)
       )
-    `)
-    .eq("organization_id", ORGANIZATION_ID)
+    `
+    )
     .order("created_at", { ascending: false });
 
   if (error) throw error;
@@ -43,16 +40,11 @@ export async function fetchArticles(): Promise<Article[]> {
 }
 
 export async function createArticle(input: Omit<Article, "id">): Promise<void> {
-  if (!HAS_ORGANIZATION) {
-    throw new Error("Organisation non configurée (VITE_ORGANIZATION_ID).");
-  }
-
   const prestationId = await ensurePrestationId(input.type);
 
   const { data, error } = await supabase
     .from("articles")
     .insert({
-      organization_id: ORGANIZATION_ID,
       name: input.name,
       prestation_id: prestationId,
       service: input.service,
@@ -81,10 +73,6 @@ export async function updateArticle(
   id: string,
   input: Omit<Article, "id">
 ): Promise<void> {
-  if (!HAS_ORGANIZATION) {
-    throw new Error("Organisation non configurée (VITE_ORGANIZATION_ID).");
-  }
-
   const prestationId = await ensurePrestationId(input.type);
 
   const { error: e1 } = await supabase
@@ -98,12 +86,11 @@ export async function updateArticle(
       description: input.description ?? "",
       updated_at: new Date().toISOString(),
     })
-    .eq("id", id)
-    // ✅ sécurité multi-tenant
-    .eq("organization_id", ORGANIZATION_ID);
+    .eq("id", id);
 
   if (e1) throw e1;
 
+  // FK non-cascade : on supprime les liens puis on les recrée
   const { error: e2 } = await supabase
     .from("article_competences")
     .delete()
@@ -124,32 +111,12 @@ export async function updateArticle(
 }
 
 export async function deleteArticle(id: string): Promise<void> {
-  if (!HAS_ORGANIZATION) {
-    throw new Error("Organisation non configurée (VITE_ORGANIZATION_ID).");
-  }
-
-  // ✅ sécurité multi-tenant : on vérifie que l’article appartient à l’org
-  const { data: exists, error: e0 } = await supabase
-    .from("articles")
-    .select("id")
-    .eq("id", id)
-    .eq("organization_id", ORGANIZATION_ID)
-    .maybeSingle();
-
-  if (e0) throw e0;
-  if (!exists) return;
-
   const { error: e1 } = await supabase
     .from("article_competences")
     .delete()
     .eq("article_id", id);
   if (e1) throw e1;
 
-  const { error: e2 } = await supabase
-    .from("articles")
-    .delete()
-    .eq("id", id)
-    .eq("organization_id", ORGANIZATION_ID);
-
+  const { error: e2 } = await supabase.from("articles").delete().eq("id", id);
   if (e2) throw e2;
 }

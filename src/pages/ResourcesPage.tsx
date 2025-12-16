@@ -10,7 +10,6 @@ import { Toast } from "../components/Toast";
 import type { Consultant } from "../types";
 import { fetchConsultants, createConsultant } from "../api/consultants";
 import { listCompetences } from "../api/refData";
-import { HAS_ORGANIZATION } from "../lib/config";
 
 export function ResourcesPage() {
   const [view, setView] = useState<"table" | "calendar">("table");
@@ -33,15 +32,6 @@ export function ResourcesPage() {
   const competenceOptions = useMemo(() => competences.map((c) => c.name), [competences]);
 
   const refresh = async () => {
-    if (!HAS_ORGANIZATION) {
-      // ✅ pas d'appel réseau si org non configurée
-      setConsultants([]);
-      setCompetences([]);
-      setLoading(false);
-      setErrorMsg(null);
-      return;
-    }
-
     setLoading(true);
     setErrorMsg(null);
     try {
@@ -96,23 +86,6 @@ export function ResourcesPage() {
       setErrorMsg(e?.message ?? "Erreur lors de la création du consultant.");
     }
   };
-
-  // ✅ org non configurée -> message clair + pas de crash + pas d'appel réseau
-  if (!HAS_ORGANIZATION) {
-    return (
-      <div className="p-6">
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="text-red-600 mb-2">
-            Organisation non configurée : renseignez VITE_ORGANIZATION_ID.
-          </div>
-          <div className="text-gray-600">
-            Créez une ligne dans la table <b>organizations</b> (Supabase) puis copiez son <b>id</b> (UUID)
-            dans votre configuration de build.
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   if (loading) {
     return (
@@ -193,7 +166,9 @@ export function ResourcesPage() {
             <button
               onClick={() => setView("table")}
               className={`px-4 py-2 rounded-md transition-colors ${
-                view === "table" ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900"
+                view === "table"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-600 hover:text-gray-900"
               }`}
             >
               Liste
@@ -201,7 +176,9 @@ export function ResourcesPage() {
             <button
               onClick={() => setView("calendar")}
               className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
-                view === "calendar" ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900"
+                view === "calendar"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-600 hover:text-gray-900"
               }`}
             >
               <CalendarIcon className="w-4 h-4" />
@@ -234,7 +211,9 @@ export function ResourcesPage() {
         competenceOptions={competenceOptions}
       />
 
-      {showToast && <Toast message={toastMessage} type="success" onClose={() => setShowToast(false)} />}
+      {showToast && (
+        <Toast message={toastMessage} type="success" onClose={() => setShowToast(false)} />
+      )}
     </div>
   );
 }
