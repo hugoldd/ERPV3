@@ -57,11 +57,11 @@ jobs:
             echo "Aucun dossier de build trouvé (dist/ ou build/). Vérifiez vite.config.* (outDir) ou un sous-dossier."
             exit 1
           fi
-
+          
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ${{ env.OUT_DIR }}
+          path: build
 
   deploy:
     if: github.ref == 'refs/heads/main'
