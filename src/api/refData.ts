@@ -1,139 +1,82 @@
 import { supabase } from "../lib/supabase";
 import { ORGANIZATION_ID } from "../lib/config";
-import type { Article } from "../types";
-import { ensureCompetenceIds, ensurePrestationId } from "./refData";
 
-export async function fetchArticles(): Promise<Article[]> {
+export async function listPrestations(): Promise<{ id: string; name: string }[]> {
   const { data, error } = await supabase
-    .from("articles")
-    .select(`
-      id,
-      name,
-      service,
-      standard_duration_days,
-      mode,
-      description,
-      prestation:prestations(name),
-      competences:article_competences(
-        competence:competences(name)
-      )
-    `)
+    .from("prestations")
+    .select("id,name")
     .eq("organization_id", ORGANIZATION_ID)
-    .order("created_at", { ascending: false });
+    .order("name", { ascending: true });
 
   if (error) throw error;
-
-  return (data ?? []).map((row: any) => ({
-    id: row.id,
-    name: row.name,
-    type: row.prestation?.name ?? "",
-    service: row.service,
-    competencesRequired: (row.competences ?? [])
-      .map((x: any) => x.competence?.name)
-      .filter(Boolean),
-    standardDuration: row.standard_duration_days,
-    mode: row.mode, // doit matcher l'enum côté BDD
-    description: row.description ?? "",
-  }));
+  return data ?? [];
 }
 
-export async function createArticle(input: Omit<Article, "id">): Promise<void> {
-  const prestationId = await ensurePrestationId(input.type);
-
+export async function listCompetences(): Promise<{ id: string; name: string }[]> {
   const { data, error } = await supabase
-    .from("articles")
-    .insert({
-      organization_id: ORGANIZATION_ID,
-      name: input.name,
-      prestation_id: prestationId,
-      service: input.service,
-      standard_duration_days: input.standardDuration,
-      mode: input.mode,
-      description: input.description ?? "",
-    })
+    .from("competences")
+    .select("id,name")
+    .eq("organization_id", ORGANIZATION_ID)
+    .order("name", { ascending: true });
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function ensurePrestationId(name: string): Promise<string> {
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Le nom de prestation est vide.");
+
+  const { data: existing, error: e1 } = await supabase
+    .from("prestations")
+    .select("id")
+    .eq("organization_id", ORGANIZATION_ID)
+    .eq("name", trimmed)
+    .maybeSingle();
+
+  if (e1) throw e1;
+  if (existing?.id) return existing.id;
+
+  const { data: created, error: e2 } = await supabase
+    .from("prestations")
+    .insert({ organization_id: ORGANIZATION_ID, name: trimmed })
     .select("id")
     .single();
 
-  if (error) throw error;
+  if (e2) throw e2;
+  return created.id;
+}
 
-  const competenceIds = await ensureCompetenceIds(input.competencesRequired);
-  if (competenceIds.length > 0) {
-    const { error: e2 } = await supabase.from("article_competences").insert(
-      competenceIds.map((cid) => ({
-        article_id: data.id,
-        competence_id: cid,
-      }))
+export async function ensureCompetenceIds(names: string[]): Promise<string[]> {
+  const uniq = Array.from(new Set(names.map((n) => n.trim()).filter(Boolean)));
+  if (uniq.length === 0) return [];
+
+  const { data: existing, error: e1 } = await supabase
+    .from("competences")
+    .select("id,name")
+    .eq("organization_id", ORGANIZATION_ID)
+    .in("name", uniq);
+
+  if (e1) throw e1;
+
+  const existingNames = new Set((existing ?? []).map((c) => c.name));
+  const missing = uniq.filter((n) => !existingNames.has(n));
+
+  if (missing.length > 0) {
+    const { error: e2 } = await supabase.from("competences").insert(
+      missing.map((name) => ({ organization_id: ORGANIZATION_ID, name }))
     );
     if (e2) throw e2;
   }
-}
 
-export async function updateArticle(
-  id: string,
-  input: Omit<Article, "id">
-): Promise<void> {
-  const prestationId = await ensurePrestationId(input.type);
-
-  // ✅ sécurisation multi-tenant
-  const { error: e1 } = await supabase
-    .from("articles")
-    .update({
-      name: input.name,
-      prestation_id: prestationId,
-      service: input.service,
-      standard_duration_days: input.standardDuration,
-      mode: input.mode,
-      description: input.description ?? "",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id)
-    .eq("organization_id", ORGANIZATION_ID);
-
-  if (e1) throw e1;
-
-  // reset links
-  const { error: e2 } = await supabase
-    .from("article_competences")
-    .delete()
-    .eq("article_id", id);
-
-  if (e2) throw e2;
-
-  const competenceIds = await ensureCompetenceIds(input.competencesRequired);
-  if (competenceIds.length > 0) {
-    const { error: e3 } = await supabase.from("article_competences").insert(
-      competenceIds.map((cid) => ({
-        article_id: id,
-        competence_id: cid,
-      }))
-    );
-    if (e3) throw e3;
-  }
-}
-
-export async function deleteArticle(id: string): Promise<void> {
-  // ✅ sécurisation multi-tenant : on vérifie d'abord que l'article appartient à l'org
-  const { data: exists, error: e0 } = await supabase
-    .from("articles")
-    .select("id")
-    .eq("id", id)
+  const { data: all, error: e3 } = await supabase
+    .from("competences")
+    .select("id,name")
     .eq("organization_id", ORGANIZATION_ID)
-    .maybeSingle();
+    .in("name", uniq);
 
-  if (e0) throw e0;
-  if (!exists) return;
+  if (e3) throw e3;
 
-  const { error: e1 } = await supabase
-    .from("article_competences")
-    .delete()
-    .eq("article_id", id);
-  if (e1) throw e1;
-
-  const { error: e2 } = await supabase
-    .from("articles")
-    .delete()
-    .eq("id", id)
-    .eq("organization_id", ORGANIZATION_ID);
-
-  if (e2) throw e2;
+  const byName = new Map((all ?? []).map((x) => [x.name, x.id] as const));
+  return uniq.map((n) => byName.get(n)!).filter(Boolean);
 }
