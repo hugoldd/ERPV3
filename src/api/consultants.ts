@@ -1,5 +1,3 @@
-// src/api/consultants.ts
-
 import { supabase } from "../lib/supabase";
 import type { Consultant } from "../types";
 import { ensureCompetenceIds } from "./refData";
@@ -15,7 +13,13 @@ export async function fetchConsultants(): Promise<Consultant[]> {
       phone,
       service,
       location,
-      availability_pct,
+      work_mon,
+      work_tue,
+      work_wed,
+      work_thu,
+      work_fri,
+      work_sat,
+      work_sun,
       competences:consultant_competences(
         competence:competences(name)
       )
@@ -28,12 +32,22 @@ export async function fetchConsultants(): Promise<Consultant[]> {
   return (data ?? []).map((row: any) => ({
     id: row.id,
     name: row.name,
-    email: row.email,
+    email: row.email ?? "",
     phone: row.phone ?? "",
     service: row.service,
     location: row.location,
-    availability: row.availability_pct ?? 100,
-    competences: (row.competences ?? []).map((x: any) => x.competence?.name).filter(Boolean),
+    competences: (row.competences ?? [])
+      .map((x: any) => x.competence?.name)
+      .filter(Boolean),
+    workDays: {
+      mon: !!row.work_mon,
+      tue: !!row.work_tue,
+      wed: !!row.work_wed,
+      thu: !!row.work_thu,
+      fri: !!row.work_fri,
+      sat: !!row.work_sat,
+      sun: !!row.work_sun,
+    },
   }));
 }
 
@@ -42,11 +56,17 @@ export async function createConsultant(input: Omit<Consultant, "id">): Promise<v
     .from("consultants")
     .insert({
       name: input.name,
-      email: input.email,
-      phone: input.phone ?? null,
+      email: input.email?.trim() ? input.email.trim() : null, // ✅ nullable
+      phone: input.phone?.trim() ? input.phone.trim() : null,
       service: input.service,
       location: input.location,
-      availability_pct: input.availability,
+      work_mon: input.workDays.mon,
+      work_tue: input.workDays.tue,
+      work_wed: input.workDays.wed,
+      work_thu: input.workDays.thu,
+      work_fri: input.workDays.fri,
+      work_sat: input.workDays.sat,
+      work_sun: input.workDays.sun,
     })
     .select("id")
     .single();
@@ -73,18 +93,23 @@ export async function updateConsultant(
     .from("consultants")
     .update({
       name: input.name,
-      email: input.email,
-      phone: input.phone ?? null,
+      email: input.email?.trim() ? input.email.trim() : null,
+      phone: input.phone?.trim() ? input.phone.trim() : null,
       service: input.service,
       location: input.location,
-      availability_pct: input.availability,
+      work_mon: input.workDays.mon,
+      work_tue: input.workDays.tue,
+      work_wed: input.workDays.wed,
+      work_thu: input.workDays.thu,
+      work_fri: input.workDays.fri,
+      work_sat: input.workDays.sat,
+      work_sun: input.workDays.sun,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id);
 
   if (e1) throw e1;
 
-  // FK non-cascade : on remplace les liens
   const { error: e2 } = await supabase
     .from("consultant_competences")
     .delete()
