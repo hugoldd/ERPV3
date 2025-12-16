@@ -1,4 +1,4 @@
-import { Mail, Phone, MapPin, Award, Edit, Trash2 } from "lucide-react";
+import { Mail, Phone, MapPin, Award, Pencil, Trash2 } from "lucide-react";
 import type { Consultant } from "../types";
 
 interface ResourcesTableProps {
@@ -95,8 +95,7 @@ export function ResourcesTable({ consultants, onEdit, onDelete }: ResourcesTable
                       </div>
                     ) : (
                       <div className="flex items-center gap-2 text-gray-400 text-sm">
-                        <Mail className="w-3 h-3" />
-                        —
+                        <Mail className="w-3 h-3" />—
                       </div>
                     )}
 
@@ -109,8 +108,7 @@ export function ResourcesTable({ consultants, onEdit, onDelete }: ResourcesTable
                       </div>
                     ) : (
                       <div className="flex items-center gap-2 text-gray-400 text-sm">
-                        <Phone className="w-3 h-3" />
-                        —
+                        <Phone className="w-3 h-3" />—
                       </div>
                     )}
                   </div>
@@ -122,7 +120,9 @@ export function ResourcesTable({ consultants, onEdit, onDelete }: ResourcesTable
                       <span
                         key={d.key}
                         className={`w-7 h-7 rounded flex items-center justify-center text-xs border ${
-                          consultant.workDays?.[d.key] ? "bg-blue-50 border-blue-200 text-blue-700" : "bg-white border-gray-200 text-gray-400"
+                          consultant.workDays?.[d.key]
+                            ? "bg-blue-50 border-blue-200 text-blue-700"
+                            : "bg-white border-gray-200 text-gray-400"
                         }`}
                         title={d.key}
                       >
@@ -135,14 +135,25 @@ export function ResourcesTable({ consultants, onEdit, onDelete }: ResourcesTable
                 <td className="px-6 py-4">
                   <div className="flex justify-end gap-2">
                     <button
-                      onClick={() => onEdit(consultant)}
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onEdit(consultant);
+                      }}
                       className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                       title="Modifier"
                     >
-                      <Edit className="w-4 h-4" />
+                      <Pencil className="w-4 h-4" />
                     </button>
+
                     <button
-                      onClick={() => onDelete(consultant.id)}
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onDelete(consultant.id);
+                      }}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                       title="Supprimer"
                     >
@@ -156,7 +167,9 @@ export function ResourcesTable({ consultants, onEdit, onDelete }: ResourcesTable
         </table>
       </div>
 
-      {consultants.length === 0 && <div className="py-12 text-center text-gray-500">Aucun consultant trouvé</div>}
+      {consultants.length === 0 && (
+        <div className="py-12 text-center text-gray-500">Aucun consultant trouvé</div>
+      )}
     </div>
   );
 }
