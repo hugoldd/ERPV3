@@ -4,7 +4,7 @@ import path from "path";
 
 export default defineConfig({
   plugins: [react()],
-  base: "/ERPV3/", // ✅ indispensable pour GitHub Pages sur ce repo
+  base: "/ERPV3/",
   resolve: {
     extensions: [".js", ".jsx", ".ts", ".tsx", ".json"],
     alias: {
@@ -58,4 +58,3 @@ export default defineConfig({
     open: true,
   },
 });
-
