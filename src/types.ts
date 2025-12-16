@@ -11,15 +11,25 @@ export type Article = {
   description: string;
 };
 
+export type WorkDays = {
+  mon: boolean;
+  tue: boolean;
+  wed: boolean;
+  thu: boolean;
+  fri: boolean;
+  sat: boolean;
+  sun: boolean;
+};
+
 export type Consultant = {
   id: string;
   name: string;
   competences: string[];
   location: string;
   service: string;
-  availability: number;
-  email: string;
-  phone?: string; // ✅ optionnel
+  email?: string; // ✅ non obligatoire
+  phone?: string;
+  workDays: WorkDays; // ✅ jours travaillés
 };
 
 export type Competence = {
