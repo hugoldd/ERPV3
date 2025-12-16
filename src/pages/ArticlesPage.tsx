@@ -1,137 +1,139 @@
-import { useState } from 'react';
-import { Plus, Search, Edit, Trash2 } from 'lucide-react';
-import { ManageArticleModal } from '../components/modals/ManageArticleModal';
-import { Toast } from '../components/Toast';
+import { useEffect, useMemo, useState } from "react";
+import { Plus, Search, Edit, Trash2 } from "lucide-react";
+import { ManageArticleModal } from "../components/modals/ManageArticleModal";
+import { Toast } from "../components/Toast";
 
-export type Article = {
-  id: string;
-  name: string;
-  type: 'Installation' | 'Paramétrage' | 'Formation' | 'Reprise de données' | 'Support' | 'Migration';
-  service: string;
-  competencesRequired: string[];
-  standardDuration: number; // in days
-  mode: 'Sur site' | 'À distance' | 'Hybride';
-  description: string;
-};
-
-const mockArticles: Article[] = [
-  {
-    id: '1',
-    name: 'Installation SIRH Paie',
-    type: 'Installation',
-    service: 'SIRH',
-    competencesRequired: ['Paie', 'Installation'],
-    standardDuration: 5,
-    mode: 'Sur site',
-    description: 'Installation complète du module Paie'
-  },
-  {
-    id: '2',
-    name: 'Formation GTA Utilisateurs',
-    type: 'Formation',
-    service: 'SIRH',
-    competencesRequired: ['GTA', 'Formation'],
-    standardDuration: 2,
-    mode: 'Hybride',
-    description: 'Formation des utilisateurs finaux au module GTA'
-  },
-  {
-    id: '3',
-    name: 'Paramétrage SIGF Standard',
-    type: 'Paramétrage',
-    service: 'Finance',
-    competencesRequired: ['SIGF', 'Paramétrage'],
-    standardDuration: 8,
-    mode: 'À distance',
-    description: 'Paramétrage du système de gestion financière'
-  },
-  {
-    id: '4',
-    name: 'Reprise données Paie',
-    type: 'Reprise de données',
-    service: 'SIRH',
-    competencesRequired: ['Paie', 'Reprise de données'],
-    standardDuration: 3,
-    mode: 'À distance',
-    description: 'Migration des données de paie depuis l\'ancien système'
-  },
-  {
-    id: '5',
-    name: 'Formation SIGF Administrateurs',
-    type: 'Formation',
-    service: 'Finance',
-    competencesRequired: ['SIGF', 'Formation'],
-    standardDuration: 3,
-    mode: 'Sur site',
-    description: 'Formation des administrateurs du système SIGF'
-  }
-];
+import type { Article } from "../types";
+import { fetchArticles, createArticle, updateArticle, deleteArticle } from "../api/articles";
+import { listPrestations, listCompetences } from "../api/refData";
 
 export function ArticlesPage() {
-  const [articles, setArticles] = useState<Article[]>(mockArticles);
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [prestations, setPrestations] = useState<{ id: string; name: string }[]>([]);
+  const [competences, setCompetences] = useState<{ id: string; name: string }[]>([]);
+
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
   const [showAddArticle, setShowAddArticle] = useState(false);
   const [editingArticle, setEditingArticle] = useState<Article | undefined>();
-  const [searchTerm, setSearchTerm] = useState('');
+
+  const [searchTerm, setSearchTerm] = useState("");
+
   const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
+  const [toastMessage, setToastMessage] = useState("");
 
-  const filteredArticles = articles.filter(article =>
-    article.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    article.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    article.service.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const prestationOptions = useMemo(() => prestations.map((p) => p.name), [prestations]);
+  const competenceOptions = useMemo(() => competences.map((c) => c.name), [competences]);
 
-  const handleAddArticle = (newArticle: Omit<Article, 'id'>) => {
-    const article: Article = {
-      ...newArticle,
-      id: Date.now().toString()
-    };
-    setArticles([...articles, article]);
-    setToastMessage('Article ajouté avec succès');
+  const refresh = async () => {
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const [a, p, c] = await Promise.all([fetchArticles(), listPrestations(), listCompetences()]);
+      setArticles(a);
+      setPrestations(p);
+      setCompetences(c);
+    } catch (e: any) {
+      setErrorMsg(e?.message ?? "Erreur lors du chargement des données.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void refresh();
+  }, []);
+
+  const filteredArticles = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return articles;
+
+    return articles.filter((article) => {
+      return (
+        article.name.toLowerCase().includes(term) ||
+        article.type.toLowerCase().includes(term) ||
+        article.service.toLowerCase().includes(term)
+      );
+    });
+  }, [articles, searchTerm]);
+
+  const handleAddArticle = async (newArticle: Omit<Article, "id">) => {
+    await createArticle(newArticle);
+    await refresh();
+    setToastMessage("Article ajouté avec succès");
     setShowToast(true);
   };
 
-  const handleEditArticle = (updatedArticle: Omit<Article, 'id'>) => {
-    if (editingArticle) {
-      setArticles(articles.map(a =>
-        a.id === editingArticle.id ? { ...updatedArticle, id: editingArticle.id } : a
-      ));
-      setToastMessage('Article mis à jour');
-      setShowToast(true);
-      setEditingArticle(undefined);
-    }
+  const handleEditArticle = async (updatedArticle: Omit<Article, "id">) => {
+    if (!editingArticle) return;
+    await updateArticle(editingArticle.id, updatedArticle);
+    await refresh();
+    setToastMessage("Article mis à jour");
+    setShowToast(true);
+    setEditingArticle(undefined);
   };
 
-  const handleDeleteArticle = (id: string) => {
-    if (confirm('Êtes-vous sûr de vouloir supprimer cet article ?')) {
-      setArticles(articles.filter(a => a.id !== id));
-      setToastMessage('Article supprimé');
-      setShowToast(true);
-    }
+  const handleDeleteArticle = async (id: string) => {
+    if (!confirm("Êtes-vous sûr de vouloir supprimer cet article ?")) return;
+    await deleteArticle(id);
+    await refresh();
+    setToastMessage("Article supprimé");
+    setShowToast(true);
   };
 
-  const getModeColor = (mode: Article['mode']) => {
+  const getModeColor = (mode: Article["mode"]) => {
     switch (mode) {
-      case 'Sur site':
-        return 'bg-blue-100 text-blue-700';
-      case 'À distance':
-        return 'bg-green-100 text-green-700';
-      case 'Hybride':
-        return 'bg-purple-100 text-purple-700';
+      case "Sur site":
+        return "bg-blue-100 text-blue-700";
+      case "À distance":
+        return "bg-green-100 text-green-700";
+      case "Hybride":
+        return "bg-purple-100 text-purple-700";
+      default:
+        return "bg-gray-100 text-gray-700";
     }
   };
 
-  const getTypeColor = (type: Article['type']) => {
-    const colors: Record<Article['type'], string> = {
-      'Installation': 'bg-orange-100 text-orange-700',
-      'Paramétrage': 'bg-blue-100 text-blue-700',
-      'Formation': 'bg-green-100 text-green-700',
-      'Reprise de données': 'bg-purple-100 text-purple-700',
-      'Support': 'bg-gray-100 text-gray-700',
-      'Migration': 'bg-pink-100 text-pink-700'
+  // Vos types (prestations) deviennent dynamiques. On garde vos couleurs
+  // pour les libellés connus, sinon fallback.
+  const getTypeColor = (type: string) => {
+    const colors: Record<string, string> = {
+      Installation: "bg-orange-100 text-orange-700",
+      "Paramétrage": "bg-blue-100 text-blue-700",
+      Formation: "bg-green-100 text-green-700",
+      "Reprise de données": "bg-purple-100 text-purple-700",
+      Support: "bg-gray-100 text-gray-700",
+      Migration: "bg-pink-100 text-pink-700",
     };
-    return colors[type];
+    return colors[type] ?? "bg-gray-100 text-gray-700";
   };
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="bg-white rounded-lg border border-gray-200 p-6 text-gray-600">
+          Chargement…
+        </div>
+      </div>
+    );
+  }
+
+  if (errorMsg) {
+    return (
+      <div className="p-6">
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="text-red-600 mb-3">{errorMsg}</div>
+          <button
+            onClick={() => void refresh()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Réessayer
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
@@ -178,6 +180,7 @@ export function ArticlesPage() {
                   </span>
                 </div>
               </div>
+
               <div className="flex gap-2">
                 <button
                   onClick={() => setEditingArticle(article)}
@@ -186,7 +189,7 @@ export function ArticlesPage() {
                   <Edit className="w-4 h-4" />
                 </button>
                 <button
-                  onClick={() => handleDeleteArticle(article.id)}
+                  onClick={() => void handleDeleteArticle(article.id)}
                   className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -205,7 +208,7 @@ export function ArticlesPage() {
                 <div className="flex flex-wrap gap-1">
                   {article.competencesRequired.map((comp, idx) => (
                     <span
-                      key={idx}
+                      key={`${comp}-${idx}`}
                       className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-sm"
                     >
                       {comp}
@@ -216,7 +219,9 @@ export function ArticlesPage() {
 
               <div>
                 <div className="text-sm text-gray-500 mb-1">Durée standard</div>
-                <div className="text-gray-900">{article.standardDuration} jour{article.standardDuration > 1 ? 's' : ''}</div>
+                <div className="text-gray-900">
+                  {article.standardDuration} jour{article.standardDuration > 1 ? "s" : ""}
+                </div>
               </div>
 
               {article.description && (
@@ -236,27 +241,29 @@ export function ArticlesPage() {
         </div>
       )}
 
+      {/* Create */}
       <ManageArticleModal
         isOpen={showAddArticle}
         onClose={() => setShowAddArticle(false)}
         onSave={handleAddArticle}
+        prestationOptions={prestationOptions}
+        competenceOptions={competenceOptions}
       />
 
+      {/* Edit */}
       {editingArticle && (
         <ManageArticleModal
           isOpen={!!editingArticle}
           onClose={() => setEditingArticle(undefined)}
           onSave={handleEditArticle}
           article={editingArticle}
+          prestationOptions={prestationOptions}
+          competenceOptions={competenceOptions}
         />
       )}
 
       {showToast && (
-        <Toast
-          message={toastMessage}
-          type="success"
-          onClose={() => setShowToast(false)}
-        />
+        <Toast message={toastMessage} type="success" onClose={() => setShowToast(false)} />
       )}
     </div>
   );
