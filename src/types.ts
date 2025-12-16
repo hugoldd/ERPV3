@@ -21,3 +21,8 @@ export type Consultant = {
   email: string;
   phone?: string; // ✅ optionnel
 };
+
+export type Competence = {
+  id: string;
+  name: string;
+};
