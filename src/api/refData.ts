@@ -32,13 +32,14 @@ export async function fetchArticles(): Promise<Article[]> {
       .map((x: any) => x.competence?.name)
       .filter(Boolean),
     standardDuration: row.standard_duration_days,
-    mode: row.mode,
+    mode: row.mode, // doit matcher l'enum côté BDD
     description: row.description ?? "",
   }));
 }
 
 export async function createArticle(input: Omit<Article, "id">): Promise<void> {
   const prestationId = await ensurePrestationId(input.type);
+
   const { data, error } = await supabase
     .from("articles")
     .insert({
@@ -67,9 +68,13 @@ export async function createArticle(input: Omit<Article, "id">): Promise<void> {
   }
 }
 
-export async function updateArticle(id: string, input: Omit<Article, "id">): Promise<void> {
+export async function updateArticle(
+  id: string,
+  input: Omit<Article, "id">
+): Promise<void> {
   const prestationId = await ensurePrestationId(input.type);
 
+  // ✅ sécurisation multi-tenant
   const { error: e1 } = await supabase
     .from("articles")
     .update({
@@ -81,11 +86,12 @@ export async function updateArticle(id: string, input: Omit<Article, "id">): Pro
       description: input.description ?? "",
       updated_at: new Date().toISOString(),
     })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("organization_id", ORGANIZATION_ID);
 
   if (e1) throw e1;
 
-  // IMPORTANT : votre FK n’est pas en cascade -> on supprime d’abord les liens
+  // reset links
   const { error: e2 } = await supabase
     .from("article_competences")
     .delete()
@@ -106,12 +112,28 @@ export async function updateArticle(id: string, input: Omit<Article, "id">): Pro
 }
 
 export async function deleteArticle(id: string): Promise<void> {
+  // ✅ sécurisation multi-tenant : on vérifie d'abord que l'article appartient à l'org
+  const { data: exists, error: e0 } = await supabase
+    .from("articles")
+    .select("id")
+    .eq("id", id)
+    .eq("organization_id", ORGANIZATION_ID)
+    .maybeSingle();
+
+  if (e0) throw e0;
+  if (!exists) return;
+
   const { error: e1 } = await supabase
     .from("article_competences")
     .delete()
     .eq("article_id", id);
   if (e1) throw e1;
 
-  const { error: e2 } = await supabase.from("articles").delete().eq("id", id);
+  const { error: e2 } = await supabase
+    .from("articles")
+    .delete()
+    .eq("id", id)
+    .eq("organization_id", ORGANIZATION_ID);
+
   if (e2) throw e2;
 }
