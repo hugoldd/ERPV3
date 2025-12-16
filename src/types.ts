@@ -3,7 +3,7 @@ export type ArticleMode = "Sur site" | "À distance" | "Hybride";
 export type Article = {
   id: string;
   name: string;
-  type: string; // <-- devient dynamique (prestation.name)
+  type: string;
   service: string;
   competencesRequired: string[];
   standardDuration: number;
@@ -17,7 +17,7 @@ export type Consultant = {
   competences: string[];
   location: string;
   service: string;
-  availability: number; // %
+  availability: number;
   email: string;
-  phone: string;
+  phone?: string; // ✅ optionnel
 };
