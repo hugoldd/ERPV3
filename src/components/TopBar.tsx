@@ -20,6 +20,7 @@ export function TopBar({ currentPage }: TopBarProps) {
     portfolio: 'Tableau de bord – Direction de projet',
     planning: 'Planning des interventions',
     resources: 'Gestion des ressources',
+    competences: "Gestion des compétences",
     articles: 'Catalogue des articles',
     reporting: 'Reporting et analyses',
     administration: 'Administration et paramétrage'
