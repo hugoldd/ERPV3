@@ -1,15 +1,13 @@
-// src/pages/ResourcesPage.tsx
-
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Search, Filter, Calendar as CalendarIcon } from "lucide-react";
 import { ResourcesTable } from "../components/ResourcesTable";
 import { ResourcesCalendar } from "../components/ResourcesCalendar";
 import { ManageConsultantModal } from "../components/modals/ManageConsultantModal";
-import { Toast } from "../components/Toast";
 
 import type { Consultant } from "../types";
-import { fetchConsultants, createConsultant } from "../api/consultants";
+import { fetchConsultants, createConsultant, updateConsultant, deleteConsultant } from "../api/consultants";
 import { listCompetences } from "../api/refData";
+import { Toast } from "../components/Toast";
 
 export function ResourcesPage() {
   const [view, setView] = useState<"table" | "calendar">("table");
@@ -21,6 +19,7 @@ export function ResourcesPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [showAddConsultant, setShowAddConsultant] = useState(false);
+  const [editingConsultant, setEditingConsultant] = useState<Consultant | undefined>(undefined);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCompetence, setFilterCompetence] = useState("");
@@ -47,11 +46,10 @@ export function ResourcesPage() {
 
   useEffect(() => {
     void refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const allCompetences = useMemo(
-    () => Array.from(new Set(consultants.flatMap((c) => c.competences))).sort(),
+    () => Array.from(new Set(consultants.flatMap((c) => c.competences ?? []))).sort(),
     [consultants]
   );
 
@@ -67,24 +65,37 @@ export function ResourcesPage() {
       const matchesSearch =
         !term ||
         consultant.name.toLowerCase().includes(term) ||
-        consultant.email.toLowerCase().includes(term);
+        (consultant.email ?? "").toLowerCase().includes(term);
 
-      const matchesCompetence = !filterCompetence || consultant.competences.includes(filterCompetence);
+      const matchesCompetence = !filterCompetence || (consultant.competences ?? []).includes(filterCompetence);
       const matchesLocation = !filterLocation || consultant.location === filterLocation;
 
       return matchesSearch && matchesCompetence && matchesLocation;
     });
   }, [consultants, searchTerm, filterCompetence, filterLocation]);
 
-  const handleAddConsultant = async (newConsultant: Omit<Consultant, "id">) => {
-    try {
-      await createConsultant(newConsultant);
-      await refresh();
-      setToastMessage("Consultant ajouté avec succès");
-      setShowToast(true);
-    } catch (e: any) {
-      setErrorMsg(e?.message ?? "Erreur lors de la création du consultant.");
-    }
+  const handleCreate = async (payload: Omit<Consultant, "id">) => {
+    await createConsultant(payload);
+    await refresh();
+    setToastMessage("Consultant ajouté");
+    setShowToast(true);
+  };
+
+  const handleUpdate = async (payload: Omit<Consultant, "id">) => {
+    if (!editingConsultant) return;
+    await updateConsultant(editingConsultant.id, payload);
+    await refresh();
+    setEditingConsultant(undefined);
+    setToastMessage("Consultant mis à jour");
+    setShowToast(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Êtes-vous sûr de vouloir supprimer ce consultant ?")) return;
+    await deleteConsultant(id);
+    await refresh();
+    setToastMessage("Consultant supprimé");
+    setShowToast(true);
   };
 
   if (loading) {
@@ -166,9 +177,7 @@ export function ResourcesPage() {
             <button
               onClick={() => setView("table")}
               className={`px-4 py-2 rounded-md transition-colors ${
-                view === "table"
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
+                view === "table" ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900"
               }`}
             >
               Liste
@@ -176,9 +185,7 @@ export function ResourcesPage() {
             <button
               onClick={() => setView("calendar")}
               className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
-                view === "calendar"
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
+                view === "calendar" ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900"
               }`}
             >
               <CalendarIcon className="w-4 h-4" />
@@ -199,21 +206,35 @@ export function ResourcesPage() {
 
       {/* Content */}
       {view === "table" ? (
-        <ResourcesTable consultants={filteredConsultants} />
+        <ResourcesTable
+          consultants={filteredConsultants}
+          onEdit={(c) => setEditingConsultant(c)}
+          onDelete={(id) => void handleDelete(id)}
+        />
       ) : (
         <ResourcesCalendar consultants={filteredConsultants} />
       )}
 
+      {/* Create */}
       <ManageConsultantModal
         isOpen={showAddConsultant}
         onClose={() => setShowAddConsultant(false)}
-        onSave={handleAddConsultant}
+        onSave={handleCreate}
         competenceOptions={competenceOptions}
       />
 
-      {showToast && (
-        <Toast message={toastMessage} type="success" onClose={() => setShowToast(false)} />
+      {/* Edit */}
+      {editingConsultant && (
+        <ManageConsultantModal
+          isOpen={!!editingConsultant}
+          onClose={() => setEditingConsultant(undefined)}
+          onSave={handleUpdate}
+          consultant={editingConsultant}
+          competenceOptions={competenceOptions}
+        />
       )}
+
+      {showToast && <Toast message={toastMessage} type="success" onClose={() => setShowToast(false)} />}
     </div>
   );
 }
