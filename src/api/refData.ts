@@ -1,7 +1,10 @@
+// src/api/refData.ts
 import { supabase } from "../lib/supabase";
-import { ORGANIZATION_ID } from "../lib/config";
+import { ORGANIZATION_ID, HAS_ORGANIZATION } from "../lib/config";
 
 export async function listPrestations(): Promise<{ id: string; name: string }[]> {
+  if (!HAS_ORGANIZATION) return [];
+
   const { data, error } = await supabase
     .from("prestations")
     .select("id,name")
@@ -13,6 +16,8 @@ export async function listPrestations(): Promise<{ id: string; name: string }[]>
 }
 
 export async function listCompetences(): Promise<{ id: string; name: string }[]> {
+  if (!HAS_ORGANIZATION) return [];
+
   const { data, error } = await supabase
     .from("competences")
     .select("id,name")
@@ -24,6 +29,10 @@ export async function listCompetences(): Promise<{ id: string; name: string }[]>
 }
 
 export async function ensurePrestationId(name: string): Promise<string> {
+  if (!HAS_ORGANIZATION) {
+    throw new Error("Organisation non configurée (VITE_ORGANIZATION_ID). Création impossible.");
+  }
+
   const trimmed = name.trim();
   if (!trimmed) throw new Error("Le nom de prestation est vide.");
 
@@ -48,6 +57,10 @@ export async function ensurePrestationId(name: string): Promise<string> {
 }
 
 export async function ensureCompetenceIds(names: string[]): Promise<string[]> {
+  if (!HAS_ORGANIZATION) {
+    throw new Error("Organisation non configurée (VITE_ORGANIZATION_ID). Création impossible.");
+  }
+
   const uniq = Array.from(new Set(names.map((n) => n.trim()).filter(Boolean)));
   if (uniq.length === 0) return [];
 
