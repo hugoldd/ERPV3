@@ -3,11 +3,11 @@ import { Plus, Search, Filter, Calendar as CalendarIcon } from "lucide-react";
 import { ResourcesTable } from "../components/ResourcesTable";
 import { ResourcesCalendar } from "../components/ResourcesCalendar";
 import { ManageConsultantModal } from "../components/modals/ManageConsultantModal";
+import { Toast } from "../components/Toast";
 
 import type { Consultant } from "../types";
 import { fetchConsultants, createConsultant, updateConsultant, deleteConsultant } from "../api/consultants";
 import { listCompetences } from "../api/refData";
-import { Toast } from "../components/Toast";
 
 export function ResourcesPage() {
   const [view, setView] = useState<"table" | "calendar">("table");
@@ -60,42 +60,53 @@ export function ResourcesPage() {
 
   const filteredConsultants = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
-
-    return consultants.filter((consultant) => {
+    return consultants.filter((c) => {
       const matchesSearch =
         !term ||
-        consultant.name.toLowerCase().includes(term) ||
-        (consultant.email ?? "").toLowerCase().includes(term);
+        c.name.toLowerCase().includes(term) ||
+        (c.email ?? "").toLowerCase().includes(term);
 
-      const matchesCompetence = !filterCompetence || (consultant.competences ?? []).includes(filterCompetence);
-      const matchesLocation = !filterLocation || consultant.location === filterLocation;
+      const matchesCompetence = !filterCompetence || (c.competences ?? []).includes(filterCompetence);
+      const matchesLocation = !filterLocation || c.location === filterLocation;
 
       return matchesSearch && matchesCompetence && matchesLocation;
     });
   }, [consultants, searchTerm, filterCompetence, filterLocation]);
 
   const handleCreate = async (payload: Omit<Consultant, "id">) => {
-    await createConsultant(payload);
-    await refresh();
-    setToastMessage("Consultant ajouté");
-    setShowToast(true);
+    try {
+      await createConsultant(payload);
+      await refresh();
+      setToastMessage("Consultant ajouté");
+      setShowToast(true);
+    } catch (e: any) {
+      setErrorMsg(e?.message ?? "Erreur lors de la création.");
+    }
   };
 
   const handleUpdate = async (payload: Omit<Consultant, "id">) => {
     if (!editingConsultant) return;
-    await updateConsultant(editingConsultant.id, payload);
-    await refresh();
-    setEditingConsultant(undefined);
-    setToastMessage("Consultant mis à jour");
-    setShowToast(true);
+    try {
+      await updateConsultant(editingConsultant.id, payload);
+      await refresh();
+      setEditingConsultant(undefined);
+      setToastMessage("Consultant mis à jour");
+      setShowToast(true);
+    } catch (e: any) {
+      setErrorMsg(e?.message ?? "Erreur lors de la mise à jour.");
+    }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Êtes-vous sûr de vouloir supprimer ce consultant ?")) return;
-    await deleteConsultant(id);
-    await refresh();
-    setToastMessage("Consultant supprimé");
-    setShowToast(true);
+    try {
+      await deleteConsultant(id);
+      await refresh();
+      setToastMessage("Consultant supprimé");
+      setShowToast(true);
+    } catch (e: any) {
+      setErrorMsg(e?.message ?? "Erreur lors de la suppression.");
+    }
   };
 
   if (loading) {
@@ -124,10 +135,8 @@ export function ResourcesPage() {
 
   return (
     <div className="p-6">
-      {/* Header with Actions */}
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
@@ -139,7 +148,6 @@ export function ResourcesPage() {
             />
           </div>
 
-          {/* Competence Filter */}
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-gray-500" />
             <select
@@ -156,7 +164,6 @@ export function ResourcesPage() {
             </select>
           </div>
 
-          {/* Location Filter */}
           <select
             value={filterLocation}
             onChange={(e) => setFilterLocation(e.target.value)}
@@ -172,7 +179,6 @@ export function ResourcesPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* View Toggle */}
           <div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
             <button
               onClick={() => setView("table")}
@@ -193,7 +199,6 @@ export function ResourcesPage() {
             </button>
           </div>
 
-          {/* Add Consultant Button */}
           <button
             onClick={() => setShowAddConsultant(true)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -204,7 +209,6 @@ export function ResourcesPage() {
         </div>
       </div>
 
-      {/* Content */}
       {view === "table" ? (
         <ResourcesTable
           consultants={filteredConsultants}
@@ -215,7 +219,6 @@ export function ResourcesPage() {
         <ResourcesCalendar consultants={filteredConsultants} />
       )}
 
-      {/* Create */}
       <ManageConsultantModal
         isOpen={showAddConsultant}
         onClose={() => setShowAddConsultant(false)}
@@ -223,7 +226,6 @@ export function ResourcesPage() {
         competenceOptions={competenceOptions}
       />
 
-      {/* Edit */}
       {editingConsultant && (
         <ManageConsultantModal
           isOpen={!!editingConsultant}
@@ -234,7 +236,9 @@ export function ResourcesPage() {
         />
       )}
 
-      {showToast && <Toast message={toastMessage} type="success" onClose={() => setShowToast(false)} />}
+      {showToast && (
+        <Toast message={toastMessage} type="success" onClose={() => setShowToast(false)} />
+      )}
     </div>
   );
 }
