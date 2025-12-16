@@ -1,3 +1,5 @@
+// src/pages/ResourcesPage.tsx
+
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Search, Filter, Calendar as CalendarIcon } from "lucide-react";
 import { ResourcesTable } from "../components/ResourcesTable";
@@ -8,6 +10,7 @@ import { Toast } from "../components/Toast";
 import type { Consultant } from "../types";
 import { fetchConsultants, createConsultant } from "../api/consultants";
 import { listCompetences } from "../api/refData";
+import { HAS_ORGANIZATION } from "../lib/config";
 
 export function ResourcesPage() {
   const [view, setView] = useState<"table" | "calendar">("table");
@@ -30,6 +33,15 @@ export function ResourcesPage() {
   const competenceOptions = useMemo(() => competences.map((c) => c.name), [competences]);
 
   const refresh = async () => {
+    if (!HAS_ORGANIZATION) {
+      // ✅ pas d'appel réseau si org non configurée
+      setConsultants([]);
+      setCompetences([]);
+      setLoading(false);
+      setErrorMsg(null);
+      return;
+    }
+
     setLoading(true);
     setErrorMsg(null);
     try {
@@ -45,6 +57,7 @@ export function ResourcesPage() {
 
   useEffect(() => {
     void refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const allCompetences = useMemo(
@@ -74,18 +87,37 @@ export function ResourcesPage() {
   }, [consultants, searchTerm, filterCompetence, filterLocation]);
 
   const handleAddConsultant = async (newConsultant: Omit<Consultant, "id">) => {
-    await createConsultant(newConsultant);
-    await refresh();
-    setToastMessage("Consultant ajouté avec succès");
-    setShowToast(true);
+    try {
+      await createConsultant(newConsultant);
+      await refresh();
+      setToastMessage("Consultant ajouté avec succès");
+      setShowToast(true);
+    } catch (e: any) {
+      setErrorMsg(e?.message ?? "Erreur lors de la création du consultant.");
+    }
   };
+
+  // ✅ org non configurée -> message clair + pas de crash + pas d'appel réseau
+  if (!HAS_ORGANIZATION) {
+    return (
+      <div className="p-6">
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="text-red-600 mb-2">
+            Organisation non configurée : renseignez VITE_ORGANIZATION_ID.
+          </div>
+          <div className="text-gray-600">
+            Créez une ligne dans la table <b>organizations</b> (Supabase) puis copiez son <b>id</b> (UUID)
+            dans votre configuration de build.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
       <div className="p-6">
-        <div className="bg-white rounded-lg border border-gray-200 p-6 text-gray-600">
-          Chargement…
-        </div>
+        <div className="bg-white rounded-lg border border-gray-200 p-6 text-gray-600">Chargement…</div>
       </div>
     );
   }
@@ -202,9 +234,7 @@ export function ResourcesPage() {
         competenceOptions={competenceOptions}
       />
 
-      {showToast && (
-        <Toast message={toastMessage} type="success" onClose={() => setShowToast(false)} />
-      )}
+      {showToast && <Toast message={toastMessage} type="success" onClose={() => setShowToast(false)} />}
     </div>
   );
 }
