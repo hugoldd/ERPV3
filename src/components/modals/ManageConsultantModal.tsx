@@ -1,66 +1,55 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Modal } from "./Modal";
 import { Plus, X } from "lucide-react";
 import { Toast } from "../Toast";
-import type { Consultant } from "../../types"; // <-- ajustez en ../types si nécessaire
+import type { Consultant, WorkDays } from "../../types";
 
 interface ManageConsultantModalProps {
   isOpen: boolean;
   onClose: () => void;
-
-  // ✅ async possible (insert/update Supabase)
-  onSave: (consultant: Omit<Consultant, "id">) => Promise<void> | void;
-
+  onSave: (consultant: Omit<Consultant, "id">) => void | Promise<void>;
   consultant?: Consultant;
-
-  // ✅ alimenté par Supabase (competences)
-  competenceOptions: string[];
-
-  // optionnel : si vous souhaitez garder une liste contrôlée
-  serviceOptions?: string[];
+  competenceOptions?: string[];
 }
+
+const DEFAULT_WORK_DAYS: WorkDays = {
+  mon: true,
+  tue: true,
+  wed: true,
+  thu: true,
+  fri: true,
+  sat: false,
+  sun: false,
+};
 
 export function ManageConsultantModal({
   isOpen,
   onClose,
   onSave,
   consultant,
-  competenceOptions,
-  serviceOptions = ["SIRH", "Finance", "Support", "Formation"],
+  competenceOptions = [],
 }: ManageConsultantModalProps) {
-  const defaultService = serviceOptions?.[0] ?? "SIRH";
-
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [service, setService] = useState(defaultService);
-  const [location, setLocation] = useState("");
-  const [competences, setCompetences] = useState<string[]>([]);
+  const [name, setName] = useState(consultant?.name || "");
+  const [email, setEmail] = useState(consultant?.email || "");
+  const [phone, setPhone] = useState(consultant?.phone || "");
+  const [service, setService] = useState(consultant?.service || "SIRH");
+  const [location, setLocation] = useState(consultant?.location || "");
+  const [competences, setCompetences] = useState<string[]>(consultant?.competences || []);
   const [newCompetence, setNewCompetence] = useState("");
-  const [availability, setAvailability] = useState(100);
-
+  const [workDays, setWorkDays] = useState<WorkDays>(consultant?.workDays || DEFAULT_WORK_DAYS);
   const [showToast, setShowToast] = useState(false);
-  const [saving, setSaving] = useState(false);
 
-  // ✅ options disponibles (sans celles déjà sélectionnées)
-  const availableCompetences = useMemo(
-    () => competenceOptions.filter((c) => !competences.includes(c)),
-    [competenceOptions, competences]
-  );
-
-  // ✅ reset/remplissage quand on ouvre / change de consultant
   useEffect(() => {
     if (!isOpen) return;
-
-    setName(consultant?.name ?? "");
-    setEmail(consultant?.email ?? "");
-    setPhone(consultant?.phone ?? "");
-    setService(consultant?.service ?? defaultService);
-    setLocation(consultant?.location ?? "");
-    setCompetences(consultant?.competences ?? []);
+    setName(consultant?.name || "");
+    setEmail(consultant?.email || "");
+    setPhone(consultant?.phone || "");
+    setService(consultant?.service || "SIRH");
+    setLocation(consultant?.location || "");
+    setCompetences(consultant?.competences || []);
     setNewCompetence("");
-    setAvailability(consultant?.availability ?? 100);
-  }, [isOpen, consultant, defaultService]);
+    setWorkDays(consultant?.workDays || DEFAULT_WORK_DAYS);
+  }, [isOpen, consultant]);
 
   const handleAddCompetence = () => {
     if (newCompetence && !competences.includes(newCompetence)) {
@@ -73,38 +62,42 @@ export function ManageConsultantModal({
     setCompetences(competences.filter((c) => c !== comp));
   };
 
+  const toggleDay = (key: keyof WorkDays) => {
+    setWorkDays((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    setSaving(true);
-    try {
-      await onSave({
-        name,
-        email,
-        phone,
-        service,
-        location,
-        competences,
-        availability,
-      });
+    await onSave({
+      name,
+      email: email.trim() || "", // côté API on mettra null si vide
+      phone: phone.trim() || "",
+      service,
+      location,
+      competences,
+      workDays,
+    });
 
-      setShowToast(true);
-
-      setTimeout(() => {
-        onClose();
-      }, 700);
-    } finally {
-      setSaving(false);
-    }
+    setShowToast(true);
+    setTimeout(() => {
+      onClose();
+    }, 700);
   };
+
+  const days: { key: keyof WorkDays; label: string }[] = [
+    { key: "mon", label: "Lun" },
+    { key: "tue", label: "Mar" },
+    { key: "wed", label: "Mer" },
+    { key: "thu", label: "Jeu" },
+    { key: "fri", label: "Ven" },
+    { key: "sat", label: "Sam" },
+    { key: "sun", label: "Dim" },
+  ];
 
   return (
     <>
-      <Modal
-        isOpen={isOpen}
-        onClose={onClose}
-        title={consultant ? "Modifier le consultant" : "Ajouter un consultant"}
-      >
+      <Modal isOpen={isOpen} onClose={onClose} title={consultant ? "Modifier le consultant" : "Ajouter un consultant"}>
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Name */}
           <div>
@@ -122,12 +115,11 @@ export function ManageConsultantModal({
           {/* Email & Phone */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-gray-700 mb-2">Email *</label>
+              <label className="block text-sm text-gray-700 mb-2">Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="jean.dupont@example.com"
               />
@@ -153,14 +145,12 @@ export function ManageConsultantModal({
                 onChange={(e) => setService(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                {serviceOptions.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
+                <option value="SIRH">SIRH</option>
+                <option value="Finance">Finance</option>
+                <option value="Support">Support</option>
+                <option value="Formation">Formation</option>
               </select>
             </div>
-
             <div>
               <label className="block text-sm text-gray-700 mb-2">Localisation *</label>
               <input
@@ -176,8 +166,7 @@ export function ManageConsultantModal({
 
           {/* Competences */}
           <div>
-            <label className="block text-sm text-gray-700 mb-2">Compétences *</label>
-
+            <label className="block text-sm text-gray-700 mb-2">Compétences</label>
             <div className="flex gap-2 mb-2">
               <select
                 value={newCompetence}
@@ -185,19 +174,19 @@ export function ManageConsultantModal({
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Sélectionner une compétence</option>
-                {availableCompetences.map((comp) => (
-                  <option key={comp} value={comp}>
-                    {comp}
-                  </option>
-                ))}
+                {competenceOptions
+                  .filter((c) => !competences.includes(c))
+                  .map((comp) => (
+                    <option key={comp} value={comp}>
+                      {comp}
+                    </option>
+                  ))}
               </select>
-
               <button
                 type="button"
                 onClick={handleAddCompetence}
                 disabled={!newCompetence}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Ajouter la compétence"
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -205,17 +194,9 @@ export function ManageConsultantModal({
 
             <div className="flex flex-wrap gap-2">
               {competences.map((comp) => (
-                <span
-                  key={comp}
-                  className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm"
-                >
+                <span key={comp} className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm">
                   {comp}
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveCompetence(comp)}
-                    className="hover:bg-blue-100 rounded-full p-0.5"
-                    title="Retirer"
-                  >
+                  <button type="button" onClick={() => handleRemoveCompetence(comp)} className="hover:bg-blue-100 rounded-full p-0.5">
                     <X className="w-3 h-3" />
                   </button>
                 </span>
@@ -223,43 +204,36 @@ export function ManageConsultantModal({
             </div>
           </div>
 
-          {/* Availability */}
+          {/* Work Days */}
           <div>
-            <label className="block text-sm text-gray-700 mb-2">
-              Disponibilité : {availability}%
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              step="5"
-              value={availability}
-              onChange={(e) => setAvailability(Number(e.target.value))}
-              className="w-full"
-            />
-            <div className="flex justify-between text-xs text-gray-500 mt-1">
-              <span>0%</span>
-              <span>50%</span>
-              <span>100%</span>
+            <label className="block text-sm text-gray-700 mb-2">Jours travaillés</label>
+            <div className="grid grid-cols-7 gap-2">
+              {days.map((d) => (
+                <label
+                  key={d.key}
+                  className={`flex items-center justify-center gap-2 px-2 py-2 rounded-lg border cursor-pointer select-none ${
+                    workDays[d.key] ? "bg-blue-50 border-blue-200 text-blue-700" : "bg-white border-gray-200 text-gray-700"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={workDays[d.key]}
+                    onChange={() => toggleDay(d.key)}
+                    className="hidden"
+                  />
+                  <span className="text-sm">{d.label}</span>
+                </label>
+              ))}
             </div>
           </div>
 
           {/* Actions */}
           <div className="flex justify-end gap-3 pt-4 border-t">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={saving}
-              className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
-            >
+            <button type="button" onClick={onClose} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
               Annuler
             </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-            >
-              {saving ? "Enregistrement..." : consultant ? "Mettre à jour" : "Ajouter"}
+            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+              {consultant ? "Mettre à jour" : "Ajouter"}
             </button>
           </div>
         </form>
