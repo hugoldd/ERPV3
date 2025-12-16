@@ -1,9 +1,7 @@
-name: CI + Deploy (Pages)
+name: CI + Deploy (Vite to GitHub Pages)
 
 on:
   push:
-    branches: ["main"]
-  pull_request:
     branches: ["main"]
   workflow_dispatch:
 
@@ -29,7 +27,7 @@ jobs:
           node-version: "20"
           cache: "npm"
 
-      - name: Install
+      - name: Install dependencies
         run: npm ci
 
       - name: Build
@@ -38,39 +36,17 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run build
 
-      - name: Debug workspace
-        run: |
-          echo "=== Root ==="
-          ls -la
-          echo "=== dist ==="
-          ls -la dist || true
-          echo "=== build ==="
-          ls -la build || true
-
-      - name: Determine output dir
-        run: |
-          if [ -d "dist" ]; then
-            echo "OUT_DIR=dist" >> $GITHUB_ENV
-          elif [ -d "build" ]; then
-            echo "OUT_DIR=build" >> $GITHUB_ENV
-          else
-            echo "Aucun dossier de build trouvé (dist/ ou build/). Vérifiez vite.config.* (outDir) ou un sous-dossier."
-            exit 1
-          fi
-          
-      - name: Upload Pages artifact
+      - name: Upload artifact (build)
         uses: actions/upload-pages-artifact@v3
         with:
           path: build
 
   deploy:
-    if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
