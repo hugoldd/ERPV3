@@ -3,13 +3,12 @@ import { Modal } from "./Modal";
 import { Plus, X } from "lucide-react";
 import { Toast } from "../Toast";
 import type { Client, ClientContact } from "../../types";
-
-type ClientDraft = Omit<Client, "id">;
+import type { ClientUpsertInput } from "../../api/clients";
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (client: ClientDraft) => void;
+  onSave: (client: ClientUpsertInput) => void;
   client?: Client;
 }
 
@@ -21,11 +20,10 @@ const emptyContact = (): Omit<ClientContact, "id"> => ({
 });
 
 export function ManageClientModal({ isOpen, onClose, onSave, client }: Props) {
-  const [clientNumber, setClientNumber] = useState(client?.clientNumber ?? "");
   const [name, setName] = useState(client?.name ?? "");
   const [address, setAddress] = useState(client?.address ?? "");
   const [phone, setPhone] = useState(client?.phone ?? "");
-  const [tier, setTier] = useState<ClientDraft["tier"]>(client?.tier ?? "Tier 3");
+  const [tier, setTier] = useState<ClientUpsertInput["tier"]>(client?.tier ?? "Tier 3");
 
   const [contacts, setContacts] = useState<Omit<ClientContact, "id">[]>(
     (client?.contacts ?? []).map((c) => ({ name: c.name, role: c.role, email: c.email, phone: c.phone }))
@@ -35,7 +33,6 @@ export function ManageClientModal({ isOpen, onClose, onSave, client }: Props) {
 
   useEffect(() => {
     if (!isOpen) return;
-    setClientNumber(client?.clientNumber ?? "");
     setName(client?.name ?? "");
     setAddress(client?.address ?? "");
     setPhone(client?.phone ?? "");
@@ -44,15 +41,13 @@ export function ManageClientModal({ isOpen, onClose, onSave, client }: Props) {
   }, [isOpen, client]);
 
   const canSubmit = useMemo(() => {
-    if (!clientNumber.trim()) return false;
     if (!name.trim()) return false;
-    if (contacts.some((c) => !c.name.trim())) return false; // si un contact existe, son nom doit être rempli
+    if (contacts.some((c) => !c.name.trim())) return false;
     return true;
-  }, [clientNumber, name, contacts]);
+  }, [name, contacts]);
 
   const addContact = () => setContacts((p) => [...p, emptyContact()]);
   const removeContact = (idx: number) => setContacts((p) => p.filter((_, i) => i !== idx));
-
   const updateContact = (idx: number, patch: Partial<Omit<ClientContact, "id">>) => {
     setContacts((p) => p.map((c, i) => (i === idx ? { ...c, ...patch } : c)));
   };
@@ -67,45 +62,38 @@ export function ManageClientModal({ isOpen, onClose, onSave, client }: Props) {
         email: (c.email ?? "").trim(),
         phone: (c.phone ?? "").trim(),
       }))
-      .filter((c) => c.name); // garde uniquement les contacts valides
+      .filter((c) => c.name);
 
     onSave({
-      clientNumber: clientNumber.trim(),
       name: name.trim(),
       address: address ?? "",
       phone: phone ?? "",
       tier,
-      contacts: cleanedContacts.map((c) => ({ id: "", ...c })), // id ignoré côté API
-    } as any);
+      contacts: cleanedContacts.map((c) => ({ id: "", ...c })) as any,
+    });
 
     setShowToast(true);
-    setTimeout(() => {
-      onClose();
-    }, 700);
+    setTimeout(() => onClose(), 700);
   };
 
   return (
     <>
       <Modal isOpen={isOpen} onClose={onClose} title={client ? "Modifier le client" : "Créer un client"}>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Numéro client (lecture seule / auto) */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-gray-700 mb-2">Numéro client *</label>
-              <input
-                type="text"
-                value={clientNumber}
-                onChange={(e) => setClientNumber(e.target.value)}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="CL-0001"
-              />
+              <label className="block text-sm text-gray-700 mb-2">Numéro client</label>
+              <div className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700">
+                {client ? client.clientNumber : "Automatique"}
+              </div>
             </div>
 
             <div>
               <label className="block text-sm text-gray-700 mb-2">Tier *</label>
               <select
                 value={tier}
-                onChange={(e) => setTier(e.target.value as ClientDraft["tier"])}
+                onChange={(e) => setTier(e.target.value as ClientUpsertInput["tier"])}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="Tier 1">Tier 1</option>
@@ -149,6 +137,7 @@ export function ManageClientModal({ isOpen, onClose, onSave, client }: Props) {
             />
           </div>
 
+          {/* Contacts */}
           <div className="pt-2 border-t">
             <div className="flex items-center justify-between mb-2">
               <label className="block text-sm text-gray-700">Contacts</label>
@@ -243,13 +232,7 @@ export function ManageClientModal({ isOpen, onClose, onSave, client }: Props) {
         </form>
       </Modal>
 
-      {showToast && (
-        <Toast
-          message={client ? "Client mis à jour" : "Client créé"}
-          type="success"
-          onClose={() => setShowToast(false)}
-        />
-      )}
+      {showToast && <Toast message={client ? "Client mis à jour" : "Client créé"} type="success" onClose={() => setShowToast(false)} />}
     </>
   );
 }
