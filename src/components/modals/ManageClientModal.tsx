@@ -1,3 +1,5 @@
+// src/components/modals/ManageClientModal.tsx
+
 import { useEffect, useMemo, useState } from "react";
 import { Modal } from "./Modal";
 import { Plus, X } from "lucide-react";
@@ -26,7 +28,12 @@ export function ManageClientModal({ isOpen, onClose, onSave, client }: Props) {
   const [tier, setTier] = useState<ClientUpsertInput["tier"]>(client?.tier ?? "Tier 3");
 
   const [contacts, setContacts] = useState<Omit<ClientContact, "id">[]>(
-    (client?.contacts ?? []).map((c) => ({ name: c.name, role: c.role, email: c.email, phone: c.phone }))
+    (client?.contacts ?? []).map((c) => ({
+      name: c.name ?? "",
+      role: c.role ?? "",
+      email: c.email ?? "",
+      phone: c.phone ?? "",
+    }))
   );
 
   const [showToast, setShowToast] = useState(false);
@@ -37,7 +44,14 @@ export function ManageClientModal({ isOpen, onClose, onSave, client }: Props) {
     setAddress(client?.address ?? "");
     setPhone(client?.phone ?? "");
     setTier(client?.tier ?? "Tier 3");
-    setContacts((client?.contacts ?? []).map((c) => ({ name: c.name, role: c.role, email: c.email, phone: c.phone })));
+    setContacts(
+      (client?.contacts ?? []).map((c) => ({
+        name: c.name ?? "",
+        role: c.role ?? "",
+        email: c.email ?? "",
+        phone: c.phone ?? "",
+      }))
+    );
   }, [isOpen, client]);
 
   const canSubmit = useMemo(() => {
@@ -80,12 +94,15 @@ export function ManageClientModal({ isOpen, onClose, onSave, client }: Props) {
     <>
       <Modal isOpen={isOpen} onClose={onClose} title={client ? "Modifier le client" : "Créer un client"}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Numéro client (lecture seule / auto) */}
+          {/* Numéro client : généré automatiquement et non modifiable */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-gray-700 mb-2">Numéro client</label>
               <div className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700">
                 {client ? client.clientNumber : "Automatique"}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                Généré automatiquement lors de la création. Non modifiable.
               </div>
             </div>
 
@@ -95,6 +112,7 @@ export function ManageClientModal({ isOpen, onClose, onSave, client }: Props) {
                 value={tier}
                 onChange={(e) => setTier(e.target.value as ClientUpsertInput["tier"])}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
               >
                 <option value="Tier 1">Tier 1</option>
                 <option value="Tier 2">Tier 2</option>
@@ -232,7 +250,13 @@ export function ManageClientModal({ isOpen, onClose, onSave, client }: Props) {
         </form>
       </Modal>
 
-      {showToast && <Toast message={client ? "Client mis à jour" : "Client créé"} type="success" onClose={() => setShowToast(false)} />}
+      {showToast && (
+        <Toast
+          message={client ? "Client mis à jour" : "Client créé"}
+          type="success"
+          onClose={() => setShowToast(false)}
+        />
+      )}
     </>
   );
 }
