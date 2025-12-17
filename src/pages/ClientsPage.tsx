@@ -4,6 +4,7 @@ import { Toast } from "../components/Toast";
 import { ManageClientModal } from "../components/modals/ManageClientModal";
 import type { Client } from "../types";
 import { createClient, deleteClient, fetchClients, updateClient } from "../api/clients";
+import type { ClientUpsertInput } from "../api/clients";
 
 export function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -44,7 +45,7 @@ export function ClientsPage() {
       const matchesSearch =
         !term ||
         c.name.toLowerCase().includes(term) ||
-        c.clientNumber.toLowerCase().includes(term) ||
+        (c.clientNumber ?? "").toLowerCase().includes(term) ||
         (c.phone ?? "").toLowerCase().includes(term);
 
       const matchesTier = !filterTier || c.tier === filterTier;
@@ -52,14 +53,15 @@ export function ClientsPage() {
     });
   }, [clients, searchTerm, filterTier]);
 
-  const handleCreate = async (payload: Omit<Client, "id">) => {
+  // ✅ Important : payload sans clientNumber (généré en DB et non modifiable)
+  const handleCreate = async (payload: ClientUpsertInput) => {
     await createClient(payload);
     await refresh();
     setToastMessage("Client ajouté");
     setShowToast(true);
   };
 
-  const handleUpdate = async (payload: Omit<Client, "id">) => {
+  const handleUpdate = async (payload: ClientUpsertInput) => {
     if (!editing) return;
     await updateClient(editing.id, payload);
     await refresh();
@@ -79,7 +81,9 @@ export function ClientsPage() {
   if (loading) {
     return (
       <div className="p-6">
-        <div className="bg-white rounded-lg border border-gray-200 p-6 text-gray-600">Chargement…</div>
+        <div className="bg-white rounded-lg border border-gray-200 p-6 text-gray-600">
+          Chargement…
+        </div>
       </div>
     );
   }
@@ -90,6 +94,7 @@ export function ClientsPage() {
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="text-red-600 mb-3">{errorMsg}</div>
           <button
+            type="button"
             onClick={() => void refresh()}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
@@ -142,6 +147,7 @@ export function ClientsPage() {
         </div>
 
         <button
+          type="button"
           onClick={() => setShowAdd(true)}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
@@ -190,6 +196,7 @@ export function ClientsPage() {
                       "—"
                     )}
                   </td>
+
                   <td className="px-6 py-4">
                     <div className="flex justify-end gap-2">
                       <button
@@ -216,10 +223,16 @@ export function ClientsPage() {
           </table>
         </div>
 
-        {filtered.length === 0 && <div className="py-12 text-center text-gray-500">Aucun client trouvé</div>}
+        {filtered.length === 0 && (
+          <div className="py-12 text-center text-gray-500">Aucun client trouvé</div>
+        )}
       </div>
 
-      <ManageClientModal isOpen={showAdd} onClose={() => setShowAdd(false)} onSave={handleCreate} />
+      <ManageClientModal
+        isOpen={showAdd}
+        onClose={() => setShowAdd(false)}
+        onSave={handleCreate}
+      />
 
       {editing && (
         <ManageClientModal
@@ -230,7 +243,9 @@ export function ClientsPage() {
         />
       )}
 
-      {showToast && <Toast message={toastMessage} type="success" onClose={() => setShowToast(false)} />}
+      {showToast && (
+        <Toast message={toastMessage} type="success" onClose={() => setShowToast(false)} />
+      )}
     </div>
   );
 }
