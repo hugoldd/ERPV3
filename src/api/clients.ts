@@ -1,6 +1,8 @@
 import { supabase } from "../lib/supabase";
 import type { Client } from "../types";
 
+export type ClientUpsertInput = Omit<Client, "id" | "clientNumber">;
+
 export async function fetchClients(): Promise<Client[]> {
   const { data, error } = await supabase
     .from("clients")
@@ -27,7 +29,7 @@ export async function fetchClients(): Promise<Client[]> {
 
   return (data ?? []).map((r: any) => ({
     id: r.id,
-    clientNumber: r.client_number,
+    clientNumber: r.client_number, // affichage
     name: r.name,
     address: r.address ?? "",
     phone: r.phone ?? "",
@@ -42,11 +44,11 @@ export async function fetchClients(): Promise<Client[]> {
   }));
 }
 
-export async function createClient(input: Omit<Client, "id">): Promise<void> {
+export async function createClient(input: ClientUpsertInput): Promise<void> {
+  // client_number généré par trigger en DB
   const { data, error } = await supabase
     .from("clients")
     .insert({
-      client_number: input.clientNumber,
       name: input.name,
       address: input.address ?? "",
       phone: input.phone ?? "",
@@ -71,11 +73,11 @@ export async function createClient(input: Omit<Client, "id">): Promise<void> {
   }
 }
 
-export async function updateClient(id: string, input: Omit<Client, "id">): Promise<void> {
+export async function updateClient(id: string, input: ClientUpsertInput): Promise<void> {
   const { error } = await supabase
     .from("clients")
     .update({
-      client_number: input.clientNumber,
+      // client_number volontairement absent => non modifiable
       name: input.name,
       address: input.address ?? "",
       phone: input.phone ?? "",
@@ -86,7 +88,7 @@ export async function updateClient(id: string, input: Omit<Client, "id">): Promi
 
   if (error) throw error;
 
-  // Remplacement simple V1 : on supprime puis on réinsère
+  // V1 : on remplace la liste des contacts
   const { error: e1 } = await supabase.from("client_contacts").delete().eq("client_id", id);
   if (e1) throw e1;
 
