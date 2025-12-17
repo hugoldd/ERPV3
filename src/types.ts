@@ -48,3 +48,22 @@ export type PlanningItem = {
   startDate: string; // YYYY-MM-DD
   endDate: string;   // YYYY-MM-DD
 };
+
+export type ClientContact = {
+  id: string;
+  name: string;
+  role: string;
+  email: string;
+  phone: string;
+};
+
+export type Client = {
+  id: string;
+  clientNumber: string;
+  name: string;
+  address: string;
+  phone: string;
+  tier: "Tier 1" | "Tier 2" | "Tier 3";
+  contacts: ClientContact[];
+};
+
