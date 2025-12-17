@@ -8,8 +8,8 @@ import { CompetencesPage } from "./pages/CompetencesPage";
 import { AdministrationPage } from "./pages/AdministrationPage";
 import { PlanningPage } from "./pages/PlanningPage";
 import { ReportingPage } from "./pages/ReportingPage";
-import { supabase } from "./lib/supabase";
 import { ClientsPage } from "./pages/ClientsPage";
+import { supabase } from "./lib/supabase";
 
 export type NavigationPage =
   | "portfolio"
@@ -23,7 +23,9 @@ export type NavigationPage =
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<NavigationPage>("portfolio");
-  const [supabaseStatus, setSupabaseStatus] = useState<"checking" | "ok" | "error">("checking");
+  const [supabaseStatus, setSupabaseStatus] = useState<
+    "checking" | "ok" | "error"
+  >("checking");
   const [supabaseError, setSupabaseError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -33,16 +35,15 @@ export default function App() {
         const { data: sessionData, error: sessionError } =
           await supabase.auth.getSession();
 
-        if (sessionError) {
-          throw sessionError;
-        }
+        if (sessionError) throw sessionError;
 
         console.log("Supabase session:", sessionData.session);
 
-        // 2) Optionnel : récupérer le user
-        const { data: userData, error: userError } = await supabase.auth.getUser();
+        // 2) Optionnel : récupérer le user (non bloquant si pas de session)
+        const { data: userData, error: userError } =
+          await supabase.auth.getUser();
+
         if (userError) {
-          // getUser peut échouer si pas de session : ce n'est pas bloquant
           console.log("Supabase getUser (non bloquant):", userError.message);
         } else {
           console.log("Supabase user:", userData.user);
@@ -89,11 +90,16 @@ export default function App() {
             Configuration Supabase invalide
           </h1>
           <p className="text-sm text-gray-600 mt-2">
-            Vérifiez que le fichier{" "}
-            <code className="px-1 py-0.5 bg-gray-100 rounded">.env</code> est bien à la racine
-            du projet et contient{" "}
-            <code className="px-1 py-0.5 bg-gray-100 rounded">VITE_SUPABASE_URL</code> et{" "}
-            <code className="px-1 py-0.5 bg-gray-100 rounded">VITE_SUPABASE_ANON_KEY</code>.
+            Vérifiez que vous avez bien défini{" "}
+            <code className="px-1 py-0.5 bg-gray-100 rounded">
+              VITE_SUPABASE_URL
+            </code>{" "}
+            et{" "}
+            <code className="px-1 py-0.5 bg-gray-100 rounded">
+              VITE_SUPABASE_ANON_KEY
+            </code>{" "}
+            dans les variables d’environnement (GitHub Actions / Secrets si vous
+            déployez via Pages).
           </p>
           <div className="mt-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded p-3">
             {supabaseError}
@@ -105,15 +111,11 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Left Sidebar */}
       <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} />
 
-      {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Bar */}
         <TopBar currentPage={currentPage} />
 
-        {/* Page Content */}
         <main className="flex-1 overflow-y-auto">
           {supabaseStatus === "checking" && (
             <div className="px-4 py-2 text-sm text-gray-600 border-b bg-white">
