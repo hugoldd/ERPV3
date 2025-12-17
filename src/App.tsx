@@ -11,7 +11,7 @@ import { ReportingPage } from "./pages/ReportingPage";
 import { ClientsPage } from "./pages/ClientsPage";
 import { ProjectsPage } from "./pages/ProjectsPage";
 import { supabase } from "./lib/supabase";
-
+ 
 export type NavigationPage =
   | "portfolio"
   | "projects"
