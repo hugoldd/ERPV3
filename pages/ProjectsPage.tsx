@@ -7,7 +7,7 @@ import { deleteProject, fetchProjects } from "../api/projects";
 import { fetchArticles } from "../api/articles";
 import { fetchConsultants } from "../api/consultants";
 import { ProjectDetailModal } from "../components/modals/ProjectDetailModal";
-
+ 
 const STATUS_LABELS: Record<ProjectStatus, string> = {
   devis_en_cours: "Devis en cours",
   commande_receptionnee: "Commande réceptionnée",
