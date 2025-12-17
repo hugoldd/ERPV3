@@ -1,6 +1,6 @@
 import { Plus, Bell, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
-import { CreateProjectModal } from './modals/CreateProjectModal';
+import { ManageProjectModal } from './modals/ManageProjectModal';
 import { Toast } from './Toast';
 import { NavigationPage } from '../App';
 
@@ -18,8 +18,10 @@ export function TopBar({ currentPage }: TopBarProps) {
 
   const pageTitles: Record<NavigationPage, string> = {
     portfolio: 'Tableau de bord – Direction de projet',
+    projects: 'Projets',
     planning: 'Planning des interventions',
     resources: 'Gestion des ressources',
+    clients: 'Clients',
     competences: "Gestion des compétences",
     articles: 'Catalogue des articles',
     reporting: 'Reporting et analyses',
@@ -87,10 +89,10 @@ export function TopBar({ currentPage }: TopBarProps) {
         </div>
       </header>
 
-      <CreateProjectModal 
-        isOpen={showCreateProject} 
+      <ManageProjectModal
+        isOpen={showCreateProject}
         onClose={() => setShowCreateProject(false)}
-        onSuccess={handleProjectCreated}
+        onSaved={handleProjectCreated}
       />
 
       {showToast && (

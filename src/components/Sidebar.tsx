@@ -1,5 +1,6 @@
 import {
   Briefcase,
+  FolderKanban,
   Calendar,
   Users,
   BarChart3,
