@@ -138,174 +138,220 @@ export function ProjectDetailModal({ isOpen, onClose, project, articles, consult
   return (
     <>
       <Modal isOpen={isOpen} onClose={onClose} title={project.name} size="xl">
-        <div className="space-y-6">
-          {/* Encart projet */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <div className="text-sm text-gray-500">Client</div>
-                <div className="text-gray-900">
-                  {project.clientNumber} — {project.clientName}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Zone principale : lignes (prioritaire) */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div className="p-4 border-b border-gray-200 flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="text-gray-900 font-medium">Articles du projet</div>
+                  <div className="text-gray-500 text-sm">
+                    Planification, réalisation et reliquats (scission).
+                  </div>
                 </div>
-                <div className="text-gray-600 text-sm">{project.clientAddress || "—"}</div>
+
+                <div className="flex items-center gap-2 flex-wrap justify-end">
+                  <span className="inline-flex px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-700">
+                    Total&nbsp;{formatMoneyEUR(totals.amount)}
+                  </span>
+                  <span className="inline-flex px-2.5 py-1 rounded-full text-xs bg-amber-50 text-amber-700">
+                    Reste&nbsp;{totals.remaining}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowAddLine(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Ajouter
+                  </button>
+                </div>
               </div>
 
-              <div>
-                <div className="text-sm text-gray-500">Interlocuteur</div>
-                <div className="text-gray-900">{contactLine}</div>
-              </div>
+              {loading ? (
+                <div className="p-6 text-gray-600">Chargement…</div>
+              ) : errorMsg ? (
+                <div className="p-6 text-red-700 bg-red-50 border-t border-red-200">{errorMsg}</div>
+              ) : (
+                <div className="max-h-[60vh] overflow-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-gray-700">Article</th>
+                        <th className="px-4 py-3 text-left text-gray-700">Affectation</th>
+                        <th className="px-4 py-3 text-left text-gray-700">Quantités</th>
+                        <th className="px-4 py-3 text-right text-gray-700">Montant</th>
+                        <th className="px-4 py-3 text-right text-gray-700">Actions</th>
+                      </tr>
+                    </thead>
 
-              <div>
-                <div className="text-sm text-gray-500">Commercial</div>
-                <div className="text-gray-900">{project.commercialName || "—"}</div>
-              </div>
+                    <tbody className="divide-y divide-gray-200">
+                      {lines.map((l) => {
+                        const sold = l.soldQuantity || 0;
+                        const planned = l.plannedQuantity || 0;
+                        const realized = l.realizedQuantity || 0;
+                        const remaining = Math.max(0, sold - planned);
+                        const pct = sold > 0 ? Math.min(100, Math.round((planned / sold) * 100)) : 0;
 
-              <div>
-                <div className="text-sm text-gray-500">Directeur de projet</div>
-                <div className="text-gray-900">{project.projectManagerName || "Non affecté"}</div>
-              </div>
+                        const canReport = planned > 0 && remaining > 0;
 
-              <div>
-                <div className="text-sm text-gray-500">Commande</div>
-                <div className="text-gray-900">{project.orderDate || "—"}</div>
-                <div className="text-gray-600 text-sm">{project.salesType || "—"}</div>
-              </div>
+                        return (
+                          <tr key={l.id} className="hover:bg-gray-50 transition-colors align-top">
+                            {/* Article */}
+                            <td className="px-4 py-3">
+                              <div className="text-gray-900 font-medium">{l.articleName}</div>
+                              {l.articleService ? (
+                                <div className="mt-1 text-xs text-gray-500">{l.articleService}</div>
+                              ) : null}
+                            </td>
 
-              <div>
-                <div className="text-sm text-gray-500">État</div>
-                <div className={`inline-flex px-3 py-1 rounded-full text-sm ${statusBadge(project.status)}`}>
+                            {/* Affectation */}
+                            <td className="px-4 py-3">
+                              <div className="text-gray-900">{l.consultantName || "Non attribuée"}</div>
+                              <div className="mt-1 text-xs text-gray-500">
+                                {l.plannedStartDate ? (
+                                  <span>
+                                    {l.plannedStartDate}
+                                    {l.plannedEndDate && l.plannedEndDate !== l.plannedStartDate ? ` → ${l.plannedEndDate}` : ""}
+                                  </span>
+                                ) : (
+                                  "Dates non définies"
+                                )}
+                              </div>
+                            </td>
+
+                            {/* Quantités (regroupées pour lisibilité) */}
+                            <td className="px-4 py-3">
+                              <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
+                                <div className="text-gray-500">Vendu</div>
+                                <div className="text-right text-gray-900">{sold}</div>
+
+                                <div className="text-gray-500">Planifié</div>
+                                <div className="text-right text-gray-900">{planned}</div>
+
+                                <div className="text-gray-500">Réalisé</div>
+                                <div className="text-right text-gray-900">{realized}</div>
+
+                                <div className="text-gray-500">Reste</div>
+                                <div className={`text-right ${remaining > 0 ? "text-amber-700" : "text-gray-900"}`}>
+                                  {remaining}
+                                </div>
+                              </div>
+
+                              <div className="mt-2">
+                                <div className="h-1.5 bg-gray-100 rounded">
+                                  <div className="h-1.5 bg-blue-600 rounded" style={{ width: `${pct}%` }} />
+                                </div>
+                                <div className="mt-1 text-xs text-gray-500">{pct}% planifié</div>
+                              </div>
+                            </td>
+
+                            {/* Montant */}
+                            <td className="px-4 py-3 text-right text-gray-900 whitespace-nowrap">
+                              {formatMoneyEUR(l.amount)}
+                            </td>
+
+                            {/* Actions */}
+                            <td className="px-4 py-3">
+                              <div className="flex justify-end gap-2">
+                                {canReport && (
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleReport(l)}
+                                    className="p-2 text-amber-700 hover:bg-amber-50 rounded-lg"
+                                    title="Scinder (reporter le reliquat)"
+                                  >
+                                    <SplitSquareVertical className="w-4 h-4" />
+                                  </button>
+                                )}
+
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingLine(l)}
+                                  className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                                  title="Modifier"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => void handleDeleteLine(l.id)}
+                                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                                  title="Supprimer"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+
+                  {lines.length === 0 && (
+                    <div className="py-10 text-center text-gray-500">Aucune ligne pour ce projet</div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Panneau latéral : infos projet/client (compact, secondaire) */}
+          <div className="lg:col-span-1 space-y-4">
+            <div className="bg-white border border-gray-200 rounded-xl p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-xs text-gray-500">Client</div>
+                  <div className="text-gray-900 font-medium">
+                    {project.clientNumber} — {project.clientName}
+                  </div>
+                </div>
+
+                <div className={`inline-flex px-3 py-1 rounded-full text-xs ${statusBadge(project.status)}`}>
                   {statusLabel(project.status)}
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* Synthèse */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div className="bg-white border border-gray-200 rounded-xl p-4">
-              <div className="text-sm text-gray-500">Montant total</div>
-              <div className="text-gray-900">{formatMoneyEUR(totals.amount)}</div>
-            </div>
-            <div className="bg-white border border-gray-200 rounded-xl p-4">
-              <div className="text-sm text-gray-500">Qté vendue</div>
-              <div className="text-gray-900">{totals.sold}</div>
-            </div>
-            <div className="bg-white border border-gray-200 rounded-xl p-4">
-              <div className="text-sm text-gray-500">Qté planifiée</div>
-              <div className="text-gray-900">{totals.planned}</div>
-            </div>
-            <div className="bg-white border border-gray-200 rounded-xl p-4">
-              <div className="text-sm text-gray-500">Qté réalisée</div>
-              <div className="text-gray-900">{totals.realized}</div>
-            </div>
-            <div className="bg-white border border-gray-200 rounded-xl p-4">
-              <div className="text-sm text-gray-500">Reste à planifier</div>
-              <div className="text-gray-900">{totals.remaining}</div>
-            </div>
-          </div>
+              <div className="mt-4 grid grid-cols-1 gap-3 text-sm">
+                <div>
+                  <div className="text-xs text-gray-500">Commercial</div>
+                  <div className="text-gray-900">{project.commercialName || "—"}</div>
+                </div>
 
-          {/* Lignes */}
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <div>
-                <div className="text-gray-900">Lignes (articles)</div>
-                <div className="text-gray-500 text-sm">Planification et suivi par prestation vendue</div>
+                <div>
+                  <div className="text-xs text-gray-500">Directeur de projet</div>
+                  <div className="text-gray-900">{project.projectManagerName || "Non affecté"}</div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <div className="text-xs text-gray-500">Date commande</div>
+                    <div className="text-gray-900">{project.orderDate || "—"}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Type de vente</div>
+                    <div className="text-gray-900">{project.salesType || "—"}</div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-xs text-gray-500">Interlocuteur</div>
+                  <div className="text-gray-900">{contactLine}</div>
+                </div>
+
+                <details className="pt-2 border-t border-gray-200">
+                  <summary className="text-xs text-gray-600 cursor-pointer select-none">
+                    Coordonnées client
+                  </summary>
+                  <div className="mt-2 text-sm text-gray-700">
+                    {project.clientAddress || "—"}
+                  </div>
+                </details>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowAddLine(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                <Plus className="w-4 h-4" />
-                Ajouter une ligne
-              </button>
             </div>
-
-            {loading ? (
-              <div className="p-6 text-gray-600">Chargement…</div>
-            ) : errorMsg ? (
-              <div className="p-6 text-red-700 bg-red-50 border-t border-red-200">{errorMsg}</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-gray-700">Article</th>
-                      <th className="px-4 py-3 text-right text-gray-700">Qté vendue</th>
-                      <th className="px-4 py-3 text-right text-gray-700">Montant</th>
-                      <th className="px-4 py-3 text-left text-gray-700">Ressource</th>
-                      <th className="px-4 py-3 text-left text-gray-700">Dates prévues</th>
-                      <th className="px-4 py-3 text-right text-gray-700">Qté planifiée</th>
-                      <th className="px-4 py-3 text-right text-gray-700">Qté réalisée</th>
-                      <th className="px-4 py-3 text-right text-gray-700">Reste</th>
-                      <th className="px-4 py-3 text-right text-gray-700">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {lines.map((l) => {
-                      const remaining = Math.max(0, (l.soldQuantity || 0) - (l.plannedQuantity || 0));
-                      const canReport = (l.plannedQuantity || 0) > 0 && remaining > 0;
-                      return (
-                        <tr key={l.id} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-4 py-3 text-gray-900">
-                            <div className="text-gray-900">{l.articleName}</div>
-                            <div className="text-xs text-gray-500">{l.articleService || ""}</div>
-                          </td>
-                          <td className="px-4 py-3 text-right text-gray-900">{l.soldQuantity}</td>
-                          <td className="px-4 py-3 text-right text-gray-900">{formatMoneyEUR(l.amount)}</td>
-                          <td className="px-4 py-3 text-gray-700">{l.consultantName || "—"}</td>
-                          <td className="px-4 py-3 text-gray-700">
-                            {l.plannedStartDate ? (
-                              <span>
-                                {l.plannedStartDate}
-                                {l.plannedEndDate && l.plannedEndDate !== l.plannedStartDate ? ` → ${l.plannedEndDate}` : ""}
-                              </span>
-                            ) : (
-                              "—"
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-right text-gray-900">{l.plannedQuantity}</td>
-                          <td className="px-4 py-3 text-right text-gray-900">{l.realizedQuantity}</td>
-                          <td className="px-4 py-3 text-right text-gray-900">{remaining}</td>
-                          <td className="px-4 py-3">
-                            <div className="flex justify-end gap-2">
-                              {canReport && (
-                                <button
-                                  type="button"
-                                  onClick={() => void handleReport(l)}
-                                  className="p-2 text-amber-700 hover:bg-amber-50 rounded-lg"
-                                  title="Reporter le reliquat"
-                                >
-                                  <SplitSquareVertical className="w-4 h-4" />
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => setEditingLine(l)}
-                                className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
-                                title="Modifier"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => void handleDeleteLine(l.id)}
-                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                                title="Supprimer"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-
-                {lines.length === 0 && <div className="py-10 text-center text-gray-500">Aucune ligne pour ce projet</div>}
-              </div>
-            )}
           </div>
         </div>
       </Modal>
