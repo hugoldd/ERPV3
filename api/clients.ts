@@ -3,6 +3,24 @@ import type { Client } from "../types";
 
 export type ClientUpsertInput = Omit<Client, "id" | "clientNumber">;
 
+function mapClientRow(r: any): Client {
+  return {
+    id: r.id,
+    clientNumber: r.client_number, // affichage
+    name: r.name,
+    address: r.address ?? "",
+    phone: r.phone ?? "",
+    tier: r.tier,
+    contacts: (r.contacts ?? []).map((c: any) => ({
+      id: c.id,
+      name: c.name,
+      role: c.role ?? "",
+      email: c.email ?? "",
+      phone: c.phone ?? "",
+    })),
+  };
+}
+
 export async function fetchClients(): Promise<Client[]> {
   const { data, error } = await supabase
     .from("clients")
@@ -27,21 +45,40 @@ export async function fetchClients(): Promise<Client[]> {
 
   if (error) throw error;
 
-  return (data ?? []).map((r: any) => ({
-    id: r.id,
-    clientNumber: r.client_number, // affichage
-    name: r.name,
-    address: r.address ?? "",
-    phone: r.phone ?? "",
-    tier: r.tier,
-    contacts: (r.contacts ?? []).map((c: any) => ({
-      id: c.id,
-      name: c.name,
-      role: c.role ?? "",
-      email: c.email ?? "",
-      phone: c.phone ?? "",
-    })),
-  }));
+  return (data ?? []).map(mapClientRow);
+}
+
+/**
+ * Récupère 1 client + tous ses interlocuteurs (utile pour le module Projets).
+ * Renvoie null si le client n'existe pas.
+ */
+export async function fetchClientWithContacts(clientId: string): Promise<Client | null> {
+  const { data, error } = await supabase
+    .from("clients")
+    .select(
+      `
+      id,
+      client_number,
+      name,
+      address,
+      phone,
+      tier,
+      contacts:client_contacts(
+        id,
+        name,
+        role,
+        email,
+        phone
+      )
+    `
+    )
+    .eq("id", clientId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+
+  return mapClientRow(data);
 }
 
 export async function createClient(input: ClientUpsertInput): Promise<void> {
