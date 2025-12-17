@@ -12,6 +12,7 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
     { icon: Briefcase, label: "Portefeuille projets", page: "portfolio" as NavigationPage },
     { icon: Calendar, label: "Planning", page: "planning" as NavigationPage },
     { icon: Users, label: "Ressources", page: "resources" as NavigationPage },
+    { icon: Building2, label: "Clients", page: "clients" as NavigationPage },
     { icon: Award, label: "Compétences", page: "competences" as NavigationPage },
     { icon: Package, label: "Articles", page: "articles" as NavigationPage },
     { icon: BarChart3, label: "Reporting", page: "reporting" as NavigationPage },
