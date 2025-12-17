@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Edit, Plus, Trash2, SplitSquareVertical } from "lucide-react";
+import { Edit, Plus, Trash2, SplitSquareVertical, Mail, Phone, MapPin, Users } from "lucide-react";
 import { Modal } from "./Modal";
-import type { Article, Consultant, Project, ProjectLine } from "../../types";
+import type { Article, Consultant, Project, ProjectLine, Client } from "../../types";
 import {
   createProjectLine,
   deleteProjectLine,
@@ -10,6 +10,7 @@ import {
   updateProjectLine,
   type ProjectLineUpsertInput,
 } from "../../api/projects";
+import { fetchClientWithContacts } from "../../api/clients";
 import { Toast } from "../Toast";
 import { ManageProjectLineModal } from "./ManageProjectLineModal";
 
@@ -66,6 +67,17 @@ export function ProjectDetailModal({ isOpen, onClose, project, articles, consult
   const [toastMessage, setToastMessage] = useState("");
   const [showToast, setShowToast] = useState(false);
 
+  // Client + interlocuteurs (depuis Supabase)
+  const [clientLoading, setClientLoading] = useState(false);
+  const [clientError, setClientError] = useState<string | null>(null);
+  const [client, setClient] = useState<Client | null>(null);
+
+  const projectClientId =
+    (project as any).clientId ??
+    (project as any).client_id ??
+    (project as any).clientID ??
+    null;
+
   const refresh = async () => {
     setLoading(true);
     setErrorMsg(null);
@@ -79,10 +91,30 @@ export function ProjectDetailModal({ isOpen, onClose, project, articles, consult
     }
   };
 
+  const refreshClient = async () => {
+    if (!projectClientId) {
+      setClient(null);
+      return;
+    }
+    setClientLoading(true);
+    setClientError(null);
+    try {
+      const c = await fetchClientWithContacts(projectClientId);
+      setClient(c);
+    } catch (e: any) {
+      setClientError(e?.message ?? "Impossible de charger les informations client.");
+      setClient(null);
+    } finally {
+      setClientLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!isOpen) return;
     void refresh();
-  }, [isOpen, project.id]);
+    void refreshClient();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, project.id, projectClientId]);
 
   const totals = useMemo(() => {
     const amount = lines.reduce((s, l) => s + (l.amount || 0), 0);
@@ -130,10 +162,14 @@ export function ProjectDetailModal({ isOpen, onClose, project, articles, consult
     setShowToast(true);
   };
 
-  const contactLine = useMemo(() => {
-    const parts = [project.clientContactName, project.clientContactEmail, project.clientContactPhone].filter(Boolean);
-    return parts.length ? parts.join(" • ") : "—";
-  }, [project]);
+  const clientTitleNumber = client?.clientNumber ?? (project as any).clientNumber ?? "";
+  const clientTitleName = client?.name ?? (project as any).clientName ?? "";
+
+  const clientAddress = client?.address ?? (project as any).clientAddress ?? "";
+  const clientPhone = client?.phone ?? "";
+  const clientTier = (client as any)?.tier ?? (project as any).clientTier ?? null;
+
+  const clientContacts = client?.contacts ?? [];
 
   return (
     <>
@@ -145,9 +181,7 @@ export function ProjectDetailModal({ isOpen, onClose, project, articles, consult
               <div className="p-4 border-b border-gray-200 flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="text-gray-900 font-medium">Articles du projet</div>
-                  <div className="text-gray-500 text-sm">
-                    Planification, réalisation et reliquats (scission).
-                  </div>
+                  <div className="text-gray-500 text-sm">Planification, réalisation et reliquats (scission).</div>
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -213,7 +247,9 @@ export function ProjectDetailModal({ isOpen, onClose, project, articles, consult
                                 {l.plannedStartDate ? (
                                   <span>
                                     {l.plannedStartDate}
-                                    {l.plannedEndDate && l.plannedEndDate !== l.plannedStartDate ? ` → ${l.plannedEndDate}` : ""}
+                                    {l.plannedEndDate && l.plannedEndDate !== l.plannedStartDate
+                                      ? ` → ${l.plannedEndDate}`
+                                      : ""}
                                   </span>
                                 ) : (
                                   "Dates non définies"
@@ -221,27 +257,28 @@ export function ProjectDetailModal({ isOpen, onClose, project, articles, consult
                               </div>
                             </td>
 
-                            {/* Quantités (regroupées pour lisibilité) */}
+                            {/* Quantités (chips + barre) */}
                             <td className="px-4 py-3">
-                              <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
-                                <div className="text-gray-500">Vendu</div>
-                                <div className="text-right text-gray-900">{sold}</div>
-
-                                <div className="text-gray-500">Planifié</div>
-                                <div className="text-right text-gray-900">{planned}</div>
-
-                                <div className="text-gray-500">Réalisé</div>
-                                <div className="text-right text-gray-900">{realized}</div>
-
-                                <div className="text-gray-500">Reste</div>
-                                <div className={`text-right ${remaining > 0 ? "text-amber-700" : "text-gray-900"}`}>
-                                  {remaining}
-                                </div>
+                              <div className="flex flex-wrap gap-2 text-xs">
+                                <span className="px-2 py-1 rounded-full bg-blue-50 text-blue-700">Vendu {sold}</span>
+                                <span className="px-2 py-1 rounded-full bg-orange-50 text-orange-700">
+                                  Planifié {planned}
+                                </span>
+                                <span className="px-2 py-1 rounded-full bg-green-50 text-green-700">
+                                  Réalisé {realized}
+                                </span>
+                                <span
+                                  className={`px-2 py-1 rounded-full ${
+                                    remaining > 0 ? "bg-red-50 text-red-700" : "bg-gray-100 text-gray-700"
+                                  }`}
+                                >
+                                  Reste {remaining}
+                                </span>
                               </div>
 
                               <div className="mt-2">
                                 <div className="h-1.5 bg-gray-100 rounded">
-                                  <div className="h-1.5 bg-blue-600 rounded" style={{ width: `${pct}%` }} />
+                                  <div className="h-1.5 bg-orange-500 rounded" style={{ width: `${pct}%` }} />
                                 </div>
                                 <div className="mt-1 text-xs text-gray-500">{pct}% planifié</div>
                               </div>
@@ -306,8 +343,13 @@ export function ProjectDetailModal({ isOpen, onClose, project, articles, consult
                 <div>
                   <div className="text-xs text-gray-500">Client</div>
                   <div className="text-gray-900 font-medium">
-                    {project.clientNumber} — {project.clientName}
+                    {(clientTitleNumber || "—") + (clientTitleName ? ` — ${clientTitleName}` : "")}
                   </div>
+                  {clientTier != null && clientTier !== "" ? (
+                    <div className="mt-1 inline-flex px-2 py-1 rounded-full text-xs bg-indigo-50 text-indigo-700">
+                      Tier {clientTier}
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className={`inline-flex px-3 py-1 rounded-full text-xs ${statusBadge(project.status)}`}>
@@ -318,38 +360,87 @@ export function ProjectDetailModal({ isOpen, onClose, project, articles, consult
               <div className="mt-4 grid grid-cols-1 gap-3 text-sm">
                 <div>
                   <div className="text-xs text-gray-500">Commercial</div>
-                  <div className="text-gray-900">{project.commercialName || "—"}</div>
+                  <div className="text-gray-900">{(project as any).commercialName || "—"}</div>
                 </div>
 
                 <div>
                   <div className="text-xs text-gray-500">Directeur de projet</div>
-                  <div className="text-gray-900">{project.projectManagerName || "Non affecté"}</div>
+                  <div className="text-gray-900">{(project as any).projectManagerName || "Non affecté"}</div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <div className="text-xs text-gray-500">Date commande</div>
-                    <div className="text-gray-900">{project.orderDate || "—"}</div>
+                    <div className="text-gray-900">{(project as any).orderDate || "—"}</div>
                   </div>
                   <div>
                     <div className="text-xs text-gray-500">Type de vente</div>
-                    <div className="text-gray-900">{project.salesType || "—"}</div>
+                    <div className="text-gray-900">{(project as any).salesType || "—"}</div>
                   </div>
                 </div>
 
-                <div>
-                  <div className="text-xs text-gray-500">Interlocuteur</div>
-                  <div className="text-gray-900">{contactLine}</div>
-                </div>
-
-                <details className="pt-2 border-t border-gray-200">
-                  <summary className="text-xs text-gray-600 cursor-pointer select-none">
+                {/* Coordonnées client (depuis fiche client / Supabase) */}
+                <div className="pt-2 border-t border-gray-200">
+                  <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
+                    <MapPin className="w-4 h-4" />
                     Coordonnées client
-                  </summary>
-                  <div className="mt-2 text-sm text-gray-700">
-                    {project.clientAddress || "—"}
                   </div>
-                </details>
+
+                  {clientLoading ? (
+                    <div className="text-sm text-gray-600">Chargement des coordonnées…</div>
+                  ) : clientError ? (
+                    <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
+                      {clientError}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="text-sm text-gray-900">{clientAddress || "—"}</div>
+
+                      <div className="flex items-center gap-2 text-sm text-gray-700">
+                        <Phone className="w-4 h-4 text-gray-400" />
+                        <span className="text-gray-900">{clientPhone || "—"}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Interlocuteurs multiples */}
+                <div className="pt-2 border-t border-gray-200">
+                  <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
+                    <Users className="w-4 h-4" />
+                    Interlocuteurs
+                  </div>
+
+                  {clientLoading ? (
+                    <div className="text-sm text-gray-600">Chargement…</div>
+                  ) : clientContacts.length === 0 ? (
+                    <div className="text-sm text-gray-600">Aucun interlocuteur</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {clientContacts.map((c) => (
+                        <div key={c.id} className="rounded-lg border border-gray-200 p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="text-gray-900 font-medium">{c.name}</div>
+                            {c.role ? (
+                              <span className="text-xs px-2 py-1 rounded-full bg-blue-50 text-blue-700">{c.role}</span>
+                            ) : null}
+                          </div>
+
+                          <div className="mt-2 space-y-1 text-xs text-gray-700">
+                            <div className="flex items-center gap-2">
+                              <Mail className="w-4 h-4 text-gray-400" />
+                              <span className="text-gray-900">{c.email || "—"}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Phone className="w-4 h-4 text-gray-400" />
+                              <span className="text-gray-900">{c.phone || "—"}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
