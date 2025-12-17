@@ -9,11 +9,13 @@ import { AdministrationPage } from "./pages/AdministrationPage";
 import { PlanningPage } from "./pages/PlanningPage";
 import { ReportingPage } from "./pages/ReportingPage";
 import { supabase } from "./lib/supabase";
+import { ClientsPage } from "./pages/ClientsPage";
 
 export type NavigationPage =
   | "portfolio"
   | "planning"
   | "resources"
+  | "clients"
   | "competences"
   | "articles"
   | "reporting"
@@ -64,6 +66,8 @@ export default function App() {
         return <PlanningPage />;
       case "resources":
         return <ResourcesPage />;
+      case "clients":
+        return <ClientsPage />;
       case "competences":
         return <CompetencesPage />;
       case "articles":
