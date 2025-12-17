@@ -36,3 +36,15 @@ export type Competence = {
   id: string;
   name: string;
 };
+
+export type PlanningKind = "booking" | "time_off";
+
+export type PlanningItem = {
+  id: string;
+  consultantId: string;
+  kind: PlanningKind;
+  title: string;
+  notes: string;
+  startDate: string; // YYYY-MM-DD
+  endDate: string;   // YYYY-MM-DD
+};
