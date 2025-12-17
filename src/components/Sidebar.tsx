@@ -18,6 +18,7 @@ interface SidebarProps {
 export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
   const menuItems = [
     { icon: Briefcase, label: "Portefeuille projets", page: "portfolio" as NavigationPage },
+    { icon: FolderKanban, label: "Projets", page: "projects" as NavigationPage },
     { icon: Calendar, label: "Planning", page: "planning" as NavigationPage },
     { icon: Users, label: "Ressources", page: "resources" as NavigationPage },
     { icon: Building2, label: "Clients", page: "clients" as NavigationPage },
