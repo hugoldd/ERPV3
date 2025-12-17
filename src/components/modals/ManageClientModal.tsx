@@ -1,5 +1,3 @@
-// src/components/modals/ManageClientModal.tsx
-
 import { useEffect, useMemo, useState } from "react";
 import { Modal } from "./Modal";
 import { Plus, X } from "lucide-react";
@@ -94,16 +92,14 @@ export function ManageClientModal({ isOpen, onClose, onSave, client }: Props) {
     <>
       <Modal isOpen={isOpen} onClose={onClose} title={client ? "Modifier le client" : "Créer un client"}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Numéro client : généré automatiquement et non modifiable */}
+          {/* ✅ Numéro client : affichage uniquement */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-gray-700 mb-2">Numéro client</label>
               <div className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700">
                 {client ? client.clientNumber : "Automatique"}
               </div>
-              <div className="text-xs text-gray-500 mt-1">
-                Généré automatiquement lors de la création. Non modifiable.
-              </div>
+              <div className="text-xs text-gray-500 mt-1">Généré automatiquement. Non modifiable.</div>
             </div>
 
             <div>
@@ -251,11 +247,7 @@ export function ManageClientModal({ isOpen, onClose, onSave, client }: Props) {
       </Modal>
 
       {showToast && (
-        <Toast
-          message={client ? "Client mis à jour" : "Client créé"}
-          type="success"
-          onClose={() => setShowToast(false)}
-        />
+        <Toast message={client ? "Client mis à jour" : "Client créé"} type="success" onClose={() => setShowToast(false)} />
       )}
     </>
   );
