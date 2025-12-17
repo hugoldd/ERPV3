@@ -1,4 +1,5 @@
-import { Briefcase, Calendar, Users, BarChart3, Settings, Package, Award } from "lucide-react";
+import { Briefcase, Calendar, Users, BarChart3, Settings, Package, Building2, Award } from "lucide-react";
+
 import { NavigationPage } from "../App";
 
 interface SidebarProps {
